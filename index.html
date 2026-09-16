@@ -1969,11 +1969,11 @@ function spawnHeart(originEl) {
   }));
   setTimeout(() => img.remove(), 1050);
 }
-const decorationClickSound = new Audio("click.mp3");
 document.getElementById("decorationImg").addEventListener("click", e => {
   const target = e.currentTarget;
-  decorationClickSound.currentTime = 0;
-  decorationClickSound.play().catch(() => {});
+  // 재생 중인 소리를 되감아 재사용하면 빠르게 여러 번 눌렀을 때 잘리는 소리가 겹쳐 잡음처럼 들리므로,
+  // 클릭마다 새 Audio 인스턴스를 만들어 겹쳐 재생되게 한다.
+  new Audio("click.mp3").play().catch(() => {});
   for (let i = 0; i < 8; i++) {
     setTimeout(() => spawnHeart(target), i * 60);
   }
