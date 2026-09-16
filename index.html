@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>이미지 30x30 / 500KB 변환기</title>
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e2e4e9;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent2: #059669;
+    --accent2-hover: #047857;
+    --danger: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --card: #1f2229;
+      --text: #eaeaea;
+      --muted: #9aa0aa;
+      --border: #30333c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", "Malgun Gothic", Roboto, sans-serif;
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  p.desc { color: var(--muted); margin-top: 0; font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 28px 16px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .dropzone.drag { border-color: var(--accent); background: rgba(37,99,235,0.06); }
+  .file-list { list-style: none; padding: 0; margin: 12px 0 0; font-size: 14px; }
+  .file-list li {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .file-list li:last-child { border-bottom: none; }
+  .file-list button.remove {
+    background: none; border: none; color: var(--danger); cursor: pointer; font-size: 13px;
+  }
+  .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  button.primary, button.secondary {
+    flex: 1 1 220px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #fff;
+  }
+  button.primary { background: var(--accent); }
+  button.primary:hover { background: var(--accent-hover); }
+  button.secondary { background: var(--accent2); }
+  button.secondary:hover { background: var(--accent2-hover); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.ghost {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  }
+  .result-item {
+    display: flex; gap: 12px; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .result-item:last-child { border-bottom: none; }
+  .result-item img { width: 48px; height: 48px; object-fit: contain; background: repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50% / 12px 12px; border-radius: 6px; border: 1px solid var(--border); }
+  .result-info { flex: 1; font-size: 13px; }
+  .result-info .name { font-weight: 600; word-break: break-all; }
+  .result-info .meta { color: var(--muted); }
+  .result-info .meta.warn { color: var(--danger); }
+  a.download {
+    background: var(--accent);
+    color: #fff; text-decoration: none;
+    padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    white-space: nowrap;
+  }
+  #status { font-size: 13px; color: var(--muted); margin-top: 8px; min-height: 18px; }
+  #status.error { color: var(--danger); }
+  input[type=file] { display: none; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>이미지 30x30 / 500KB 변환기</h1>
+  <p class="desc">PNG · JPG · GIF(애니메이션 포함)를 30x30px로 리사이즈하거나, 원본 해상도를 최대한 유지하면서 500KB 이하로 압축합니다. 모든 처리는 브라우저 안에서만 이루어지며 파일은 서버로 전송되지 않습니다.</p>
+
+  <div class="card">
+    <div class="dropzone" id="dropzone">
+      이미지를 여기로 끌어다 놓거나 클릭해서 선택하세요<br />
+      <small>(PNG, JPG, GIF · 여러 개 선택 가능)</small>
+    </div>
+    <input type="file" id="fileInput" multiple accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif" />
+    <ul class="file-list" id="fileList"></ul>
+
+    <div class="actions">
+      <button class="primary" id="btnResize">30x30 변환</button>
+      <button class="secondary" id="btnCompress">500KB 이하로 압축 (고화질 우선)</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" id="resultsCard" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <strong>결과</strong>
+      <button class="ghost" id="btnClearResults">결과 지우기</button>
+    </div>
+    <div id="results"></div>
+  </div>
+
+  <footer>브라우저에서 동작하는 정적 페이지입니다 · 소스: index.html</footer>
+</div>
+
+<script type="module">
+const TARGET_SIZE = 30;
+const MAX_BYTES = 500 * 1024;
+const GIFUCT_URL = "https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm";
+const GIF_WORKER_URL = "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js";
+
+// ---------- 상태 ----------
+let selectedFiles = [];
+const fileInput = document.getElementById("fileInput");
+const dropzone = document.getElementById("dropzone");
+const fileListEl = document.getElementById("fileList");
+const statusEl = document.getElementById("status");
+const resultsCard = document.getElementById("resultsCard");
+const resultsEl = document.getElementById("results");
+
+dropzone.addEventListener("click", () => fileInput.click());
+["dragenter", "dragover"].forEach(evt =>
+  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add("drag"); })
+);
+["dragleave", "drop"].forEach(evt =>
+  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove("drag"); })
+);
+dropzone.addEventListener("drop", e => addFiles(e.dataTransfer.files));
+fileInput.addEventListener("change", () => addFiles(fileInput.files));
+
+function addFiles(fileListLike) {
+  const accepted = /\.(png|jpe?g|gif)$/i;
+  for (const f of fileListLike) {
+    if (!accepted.test(f.name)) continue;
+    if (selectedFiles.some(s => s.name === f.name && s.size === f.size && s.lastModified === f.lastModified)) continue;
+    selectedFiles.push(f);
+  }
+  renderFileList();
+}
+
+function renderFileList() {
+  fileListEl.innerHTML = "";
+  selectedFiles.forEach((f, idx) => {
+    const li = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = `${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "remove";
+    removeBtn.textContent = "삭제";
+    removeBtn.onclick = () => { selectedFiles.splice(idx, 1); renderFileList(); };
+    li.appendChild(label);
+    li.appendChild(removeBtn);
+    fileListEl.appendChild(li);
+  });
+}
+
+function setStatus(text, isError = false) {
+  statusEl.textContent = text;
+  statusEl.classList.toggle("error", isError);
+}
+
+// ---------- 공통 캔버스 유틸 ----------
+function drawToCanvas(source, w, h) {
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(source, 0, 0, w, h);
+  return canvas;
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+function* downscaleSteps(w, h, factor = 0.85, minDim = 16) {
+  let scale = 1;
+  while (true) {
+    scale *= factor;
+    const nw = Math.max(Math.round(w * scale), 1);
+    const nh = Math.max(Math.round(h * scale), 1);
+    if (Math.min(nw, nh) < minDim) return;
+    yield [nw, nh];
+  }
+}
+
+async function jpegUnderLimit(canvas, qualities) {
+  let last = null;
+  for (const q of qualities) {
+    const blob = await canvasToBlob(canvas, "image/jpeg", q);
+    last = blob;
+    if (blob.size <= MAX_BYTES) return blob;
+  }
+  return last;
+}
+
+// ---------- PNG / JPG 처리 ----------
+function isJpeg(file) {
+  return /\.jpe?g$/i.test(file.name) || file.type === "image/jpeg";
+}
+function isGif(file) {
+  return /\.gif$/i.test(file.name) || file.type === "image/gif";
+}
+
+async function compressKeepSize(bitmap, mime, jpeg) {
+  const w0 = bitmap.width, h0 = bitmap.height;
+  let canvas = drawToCanvas(bitmap, w0, h0);
+
+  if (jpeg) {
+    const blob = await jpegUnderLimit(canvas, [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4]);
+    if (blob.size <= MAX_BYTES) return { blob, width: w0, height: h0 };
+  } else {
+    const blob = await canvasToBlob(canvas, mime);
+    if (blob.size <= MAX_BYTES) return { blob, width: w0, height: h0 };
+  }
+
+  let lastBlob = null, lastW = w0, lastH = h0;
+  for (const [w, h] of downscaleSteps(w0, h0)) {
+    canvas = drawToCanvas(bitmap, w, h);
+    if (jpeg) {
+      for (const q of [0.85, 0.7, 0.55, 0.4]) {
+        const blob = await canvasToBlob(canvas, "image/jpeg", q);
+        lastBlob = blob; lastW = w; lastH = h;
+        if (blob.size <= MAX_BYTES) return { blob, width: w, height: h };
+      }
+    } else {
+      const blob = await canvasToBlob(canvas, mime);
+      lastBlob = blob; lastW = w; lastH = h;
+      if (blob.size <= MAX_BYTES) return { blob, width: w, height: h };
+    }
+  }
+
+  if (jpeg) {
+    const blob = await canvasToBlob(canvas, "image/jpeg", 0.2);
+    return { blob, width: lastW, height: lastH };
+  }
+  return { blob: lastBlob, width: lastW, height: lastH };
+}
+
+async function processStatic(file, resize) {
+  const bitmap = await createImageBitmap(file);
+  const jpeg = isJpeg(file);
+  const mime = jpeg ? "image/jpeg" : "image/png";
+  const ext = jpeg ? "jpg" : "png";
+
+  let result;
+  if (resize) {
+    const canvas = drawToCanvas(bitmap, TARGET_SIZE, TARGET_SIZE);
+    const blob = jpeg
+      ? await jpegUnderLimit(canvas, [0.92, 0.8, 0.6])
+      : await canvasToBlob(canvas, mime);
+    result = { blob, width: TARGET_SIZE, height: TARGET_SIZE };
+  } else {
+    result = await compressKeepSize(bitmap, mime, jpeg);
+  }
+  if (bitmap.close) bitmap.close();
+  return { ...result, ext, suffix: resize ? "30x30" : "500kb" };
+}
+
+// ---------- GIF 처리 ----------
+let gifuctModulePromise = null;
+function loadGifuct() {
+  if (!gifuctModulePromise) gifuctModulePromise = import(/* @vite-ignore */ GIFUCT_URL);
+  return gifuctModulePromise;
+}
+
+let gifWorkerUrlPromise = null;
+function getGifWorkerUrl() {
+  if (!gifWorkerUrlPromise) {
+    gifWorkerUrlPromise = fetch(GIF_WORKER_URL)
+      .then(r => r.text())
+      .then(text => URL.createObjectURL(new Blob([text], { type: "application/javascript" })));
+  }
+  return gifWorkerUrlPromise;
+}
+
+async function decodeGif(file) {
+  const { parseGIF, decompressFrames } = await loadGifuct();
+  const buf = await file.arrayBuffer();
+  const gifData = parseGIF(buf);
+  const rawFrames = decompressFrames(gifData, true);
+  const width = gifData.lsd.width;
+  const height = gifData.lsd.height;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext("2d");
+
+  const composited = [];
+  let savedForRestore = null;
+  let prevDisposal = 0;
+  let prevDims = null;
+
+  for (const frame of rawFrames) {
+    if (prevDisposal === 2 && prevDims) {
+      ctx.clearRect(prevDims.left, prevDims.top, prevDims.width, prevDims.height);
+    } else if (prevDisposal === 3 && savedForRestore) {
+      ctx.putImageData(savedForRestore, 0, 0);
+    }
+
+    if (frame.disposalType === 3) {
+      savedForRestore = ctx.getImageData(0, 0, width, height);
+    }
+
+    const patchImageData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
+    const patchCanvas = document.createElement("canvas");
+    patchCanvas.width = frame.dims.width;
+    patchCanvas.height = frame.dims.height;
+    patchCanvas.getContext("2d").putImageData(patchImageData, 0, 0);
+    ctx.drawImage(patchCanvas, frame.dims.left, frame.dims.top);
+
+    const frameCanvas = document.createElement("canvas");
+    frameCanvas.width = width; frameCanvas.height = height;
+    frameCanvas.getContext("2d").drawImage(canvas, 0, 0);
+    composited.push({ canvas: frameCanvas, delay: frame.delay || 100 });
+
+    prevDisposal = frame.disposalType;
+    prevDims = frame.dims;
+  }
+
+  return { width, height, frames: composited };
+}
+
+function frameHasAlpha(canvas) {
+  const ctx = canvas.getContext("2d");
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4 * 13) {
+    if (data[i] < 250) return true;
+  }
+  return false;
+}
+
+function pickTransparentColor(frames) {
+  const candidates = [[255, 0, 255], [0, 255, 0], [0, 255, 255], [255, 255, 0], [128, 0, 128]];
+  const used = new Set();
+  for (const f of frames) {
+    const ctx = f.canvas.getContext("2d");
+    const data = ctx.getImageData(0, 0, f.canvas.width, f.canvas.height).data;
+    for (let i = 0; i < data.length; i += 4 * 29) {
+      if (data[i + 3] > 10) used.add(data[i] + "," + data[i + 1] + "," + data[i + 2]);
+    }
+  }
+  for (const c of candidates) {
+    if (!used.has(c.join(","))) return c;
+  }
+  return candidates[0];
+}
+
+function applyChromaKeyInPlace(canvas, color) {
+  const ctx = canvas.getContext("2d");
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 128) {
+      d[i] = color[0]; d[i + 1] = color[1]; d[i + 2] = color[2]; d[i + 3] = 255;
+    } else {
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function cloneFrames(frames, w, h) {
+  return frames.map(f => ({ canvas: drawToCanvas(f.canvas, w, h), delay: f.delay }));
+}
+
+function prepFramesForEncode(frames, keyColor) {
+  return frames.map(f => {
+    const c = document.createElement("canvas");
+    c.width = f.canvas.width; c.height = f.canvas.height;
+    c.getContext("2d").drawImage(f.canvas, 0, 0);
+    if (keyColor) applyChromaKeyInPlace(c, keyColor);
+    return { canvas: c, delay: f.delay };
+  });
+}
+
+function rgbToHexNum([r, g, b]) {
+  return (r << 16) | (g << 8) | b;
+}
+
+async function encodeGif(frames, width, height, transparentColor) {
+  const workerScript = await getGifWorkerUrl();
+  return new Promise((resolve, reject) => {
+    const gif = new GIF({
+      workers: 2,
+      quality: 10,
+      width, height,
+      workerScript,
+      transparent: transparentColor ? rgbToHexNum(transparentColor) : undefined,
+    });
+    for (const f of frames) gif.addFrame(f.canvas, { delay: f.delay, copy: true });
+    gif.on("finished", resolve);
+    gif.on("abort", () => reject(new Error("GIF 인코딩이 중단되었습니다")));
+    gif.render();
+  });
+}
+
+async function processGif(file, resize) {
+  const { width, height, frames } = await decodeGif(file);
+  const hasAlpha = frames.some(f => frameHasAlpha(f.canvas));
+  const transparentColor = hasAlpha ? pickTransparentColor(frames) : null;
+
+  if (resize) {
+    const resized = cloneFrames(frames, TARGET_SIZE, TARGET_SIZE);
+    const prepped = prepFramesForEncode(resized, transparentColor);
+    const blob = await encodeGif(prepped, TARGET_SIZE, TARGET_SIZE, transparentColor);
+    return { blob, width: TARGET_SIZE, height: TARGET_SIZE, ext: "gif", suffix: "30x30" };
+  }
+
+  // 1) 원본 해상도로 시도
+  let prepped = prepFramesForEncode(frames, transparentColor);
+  let blob = await encodeGif(prepped, width, height, transparentColor);
+  if (blob.size <= MAX_BYTES) return { blob, width, height, ext: "gif", suffix: "500kb" };
+
+  // 2) 해상도를 낮춰가며 재시도 (색은 그대로 최대 256색 유지)
+  let curFrames = frames, lastBlob = blob, lastW = width, lastH = height;
+  for (const [w, h] of downscaleSteps(width, height)) {
+    curFrames = cloneFrames(frames, w, h);
+    prepped = prepFramesForEncode(curFrames, transparentColor);
+    blob = await encodeGif(prepped, w, h, transparentColor);
+    lastBlob = blob; lastW = w; lastH = h;
+    if (blob.size <= MAX_BYTES) return { blob, width: w, height: h, ext: "gif", suffix: "500kb" };
+  }
+
+  // 3) 마지막 수단: 프레임 수를 줄인다
+  let frameSet = curFrames;
+  while (frameSet.length > 1) {
+    frameSet = frameSet.filter((_, i) => i % 2 === 0);
+    prepped = prepFramesForEncode(frameSet, transparentColor);
+    blob = await encodeGif(prepped, lastW, lastH, transparentColor);
+    lastBlob = blob;
+    if (blob.size <= MAX_BYTES) return { blob, width: lastW, height: lastH, ext: "gif", suffix: "500kb" };
+  }
+
+  return { blob: lastBlob, width: lastW, height: lastH, ext: "gif", suffix: "500kb" };
+}
+
+// ---------- 실행 ----------
+async function processFile(file, resize) {
+  if (isGif(file)) return await processGif(file, resize);
+  return await processStatic(file, resize);
+}
+
+function baseName(name) {
+  const idx = name.lastIndexOf(".");
+  return idx === -1 ? name : name.slice(0, idx);
+}
+
+function addResult(file, outcome, error) {
+  resultsCard.style.display = "block";
+  const item = document.createElement("div");
+  item.className = "result-item";
+
+  if (error) {
+    item.innerHTML = `<div class="result-info"><div class="name">${file.name}</div><div class="meta warn">실패: ${error.message}</div></div>`;
+    resultsEl.appendChild(item);
+    return;
+  }
+
+  const { blob, width, height, ext, suffix } = outcome;
+  const outName = `${baseName(file.name)}_${suffix}.${ext}`;
+  const url = URL.createObjectURL(blob);
+  const sizeKb = (blob.size / 1024).toFixed(1);
+  const overLimit = blob.size > MAX_BYTES;
+
+  const img = document.createElement("img");
+  img.src = url;
+
+  const info = document.createElement("div");
+  info.className = "result-info";
+  info.innerHTML = `<div class="name">${outName}</div>
+    <div class="meta ${overLimit ? "warn" : ""}">${width}x${height}px · ${sizeKb} KB${overLimit ? " (500KB 초과)" : ""}</div>`;
+
+  const link = document.createElement("a");
+  link.className = "download";
+  link.href = url;
+  link.download = outName;
+  link.textContent = "다운로드";
+
+  item.appendChild(img);
+  item.appendChild(info);
+  item.appendChild(link);
+  resultsEl.appendChild(item);
+}
+
+async function runConvert(resize) {
+  if (selectedFiles.length === 0) {
+    setStatus("변환할 파일을 먼저 추가하세요.", true);
+    return;
+  }
+  btnResize.disabled = true;
+  btnCompress.disabled = true;
+  let done = 0, failed = 0;
+  for (const file of selectedFiles) {
+    setStatus(`처리 중... (${done + failed + 1}/${selectedFiles.length}) ${file.name}`);
+    try {
+      const outcome = await processFile(file, resize);
+      addResult(file, outcome);
+      done++;
+    } catch (e) {
+      console.error(e);
+      addResult(file, null, e);
+      failed++;
+    }
+  }
+  setStatus(`완료: ${done}개 / 실패: ${failed}개`, failed > 0);
+  btnResize.disabled = false;
+  btnCompress.disabled = false;
+}
+
+const btnResize = document.getElementById("btnResize");
+const btnCompress = document.getElementById("btnCompress");
+btnResize.addEventListener("click", () => runConvert(true));
+btnCompress.addEventListener("click", () => runConvert(false));
+document.getElementById("btnClearResults").addEventListener("click", () => {
+  resultsEl.innerHTML = "";
+  resultsCard.style.display = "none";
+});
+</script>
+</body>
+</html>
