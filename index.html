@@ -244,13 +244,29 @@
           <option value="monitoring">모니터링</option>
         </select>
         <p class="hint" id="monitoringHint" style="margin-top:6px;display:none;">애니메이션이 없어 이미지 파일로 저장됩니다.</p>
+        <div id="monitoringBgColorField" style="display:none;align-items:center;gap:8px;margin-top:8px;">
+          <label style="margin:0;">배경 없는 부분 채울 색</label>
+          <input type="color" id="monitoringBgColor" value="#ffffff" />
+        </div>
+        <div id="monitoringVignetteWholeField" class="field" style="display:none;margin-top:8px;">
+          <label>전체 비네팅 강도 (<span id="monitoringVignetteWholeLabel"></span>%)</label>
+          <input type="range" id="monitoringVignetteWhole" min="0" max="100" value="45" />
+        </div>
+        <div id="monitoringVignetteStartField" class="field" style="display:none;">
+          <label>비네팅 시작 지점 (<span id="monitoringVignetteStartLabel"></span>%)</label>
+          <input type="range" id="monitoringVignetteStart" min="50" max="98" value="90" />
+        </div>
+        <div id="monitoringVignetteIntensityField" class="field" style="display:none;">
+          <label>비네팅 강도 (<span id="monitoringVignetteIntensityLabel"></span>%)</label>
+          <input type="range" id="monitoringVignetteIntensity" min="0" max="100" value="100" />
+        </div>
       </div>
-      <div class="field">
+      <div class="field" id="motionSpeedField">
         <label>속도 (<span id="motionSpeedLabel"></span>)</label>
         <input type="range" id="motionSpeed" min="1" max="100" value="50" />
       </div>
-      <div class="field">
-        <label>강도 (<span id="motionIntensityLabel"></span>%)</label>
+      <div class="field" id="motionIntensityField">
+        <label><span id="motionIntensityText">강도</span> (<span id="motionIntensityLabel"></span>%)</label>
         <input type="range" id="motionIntensity" min="1" max="100" value="50" />
       </div>
       <div class="motion-preview-wrap">
@@ -1073,6 +1089,20 @@ const motionBgColorList = document.getElementById("motionBgColorList");
 const motionBgThresholdRange = document.getElementById("motionBgThreshold");
 const motionBgThresholdLabel = document.getElementById("motionBgThresholdLabel");
 const monitoringHint = document.getElementById("monitoringHint");
+const monitoringBgColorField = document.getElementById("monitoringBgColorField");
+const monitoringBgColor = document.getElementById("monitoringBgColor");
+const monitoringVignetteStartField = document.getElementById("monitoringVignetteStartField");
+const monitoringVignetteStartRange = document.getElementById("monitoringVignetteStart");
+const monitoringVignetteStartLabel = document.getElementById("monitoringVignetteStartLabel");
+const monitoringVignetteIntensityField = document.getElementById("monitoringVignetteIntensityField");
+const monitoringVignetteIntensityRange = document.getElementById("monitoringVignetteIntensity");
+const monitoringVignetteIntensityLabel = document.getElementById("monitoringVignetteIntensityLabel");
+const monitoringVignetteWholeField = document.getElementById("monitoringVignetteWholeField");
+const monitoringVignetteWholeRange = document.getElementById("monitoringVignetteWhole");
+const monitoringVignetteWholeLabel = document.getElementById("monitoringVignetteWholeLabel");
+const motionSpeedField = document.getElementById("motionSpeedField");
+const motionIntensityField = document.getElementById("motionIntensityField");
+const motionIntensityText = document.getElementById("motionIntensityText");
 
 const MOTION_DEFAULT_INTENSITY = { bounce: 50, rock: 50, jitter: 50, slide: 20, pulse: 50, spin: 24, dizzy: 50, monitoring: 50 };
 const STATIC_MOTION_TYPES = ["none", "monitoring"]; // 애니메이션이 없어 GIF 대신 이미지 파일로 저장되는 종류
@@ -1178,7 +1208,10 @@ function recomputeMotionSource() {
   }
   if (motionTypeSel.value === "monitoring") {
     const strength = motionIntensityRatio();
-    canvas = applyFisheyeFilter(canvas, strength);
+    const vignetteStart = parseInt(monitoringVignetteStartRange.value, 10) / 100;
+    const vignetteIntensity = parseInt(monitoringVignetteIntensityRange.value, 10) / 100;
+    const wholeVignetteIntensity = parseInt(monitoringVignetteWholeRange.value, 10) / 100;
+    canvas = applyFisheyeFilter(canvas, strength, monitoringBgColor.value, vignetteStart, vignetteIntensity, wholeVignetteIntensity);
   }
   motionSourceBitmap = canvas;
   motionPreviewStart = performance.now();
@@ -1188,7 +1221,14 @@ function recomputeMotionSource() {
 // 원본이 정사각형이 아니면(사진 등) 원이 꽉 차는 한 변 길이로 정사각형으로 잘라서 출력한다
 // (그렇지 않으면 남는 변에 검은 여백이 생기고, 미리보기 틀의 체크무늬 배경과 겹쳐 마치
 // 배경이 투명한 것처럼 보이는 문제가 있었음).
-function applyFisheyeFilter(source, strength) {
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!m) return { r: 255, g: 255, b: 255 };
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function applyFisheyeFilter(source, strength, bgColor, vignetteStart, vignetteIntensity, wholeVignetteIntensity) {
   const srcW = source.width, srcH = source.height;
   const size = Math.min(srcW, srcH);
   const srcCanvas = document.createElement("canvas");
@@ -1196,6 +1236,7 @@ function applyFisheyeFilter(source, strength) {
   const srcCtx = srcCanvas.getContext("2d", { willReadFrequently: true });
   srcCtx.drawImage(source, 0, 0);
   const srcData = srcCtx.getImageData(0, 0, srcW, srcH).data;
+  const bg = hexToRgb(bgColor);
 
   const outCanvas = document.createElement("canvas");
   outCanvas.width = size; outCanvas.height = size;
@@ -1206,6 +1247,13 @@ function applyFisheyeFilter(source, strength) {
   const cx = srcW / 2, cy = srcH / 2; // 원본 이미지의 중심을 기준으로 원을 그린다
   const radius = size / 2;
   const power = 1 + strength * 1.8; // 강도가 셀수록 중앙 확대가 심해짐
+  // 비네팅이 시작되는 지점(fadeStart)과 최대로 어두워지는 정도(intensity)를
+  // 사용자가 슬라이더로 조절할 수 있게 파라미터로 받는다.
+  const fadeStart = vignetteStart !== undefined ? vignetteStart : 0.9;
+  const intensity = vignetteIntensity !== undefined ? vignetteIntensity : 1;
+  // 중심에서부터 가장자리까지 항상 켜져 있는 완만한(3제곱 곡선) 전체 비네팅.
+  // 위의 fadeStart~1 구간의 급격한 테두리 페이드와는 별개로 항상 적용된다.
+  const wholeIntensity = wholeVignetteIntensity !== undefined ? wholeVignetteIntensity : 0.45;
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -1221,11 +1269,25 @@ function applyFisheyeFilter(source, strength) {
       const srcX = Math.min(srcW - 1, Math.max(0, Math.round(cx + Math.cos(theta) * rn * radius)));
       const srcY = Math.min(srcH - 1, Math.max(0, Math.round(cy + Math.sin(theta) * rn * radius)));
       const srcIdx = (srcY * srcW + srcX) * 4;
-      const vignette = 1 - Math.pow(r, 3) * 0.45;
-      out[outIdx] = srcData[srcIdx] * vignette;
-      out[outIdx + 1] = srcData[srcIdx + 1] * vignette;
-      out[outIdx + 2] = srcData[srcIdx + 2] * vignette;
-      out[outIdx + 3] = srcData[srcIdx + 3];
+
+      let mixEdge = 0;
+      if (r > fadeStart) {
+        const t = Math.min(1, (r - fadeStart) / (1 - fadeStart));
+        mixEdge = t * t * (3 - 2 * t) * intensity;
+      }
+      const mixWhole = Math.pow(r, 3) * wholeIntensity;
+      const bright = (1 - mixEdge) * (1 - mixWhole);
+
+      // 원본이 투명한 부분은 지정한 배경색으로 채운 뒤(불투명 합성) 어둡게 섞는다.
+      // 그래야 배경 없는 PNG를 사용해도 원 안쪽이 체크무늬로 비쳐 보이지 않는다.
+      const sa = srcData[srcIdx + 3] / 255;
+      const cr = srcData[srcIdx] * sa + bg.r * (1 - sa);
+      const cg = srcData[srcIdx + 1] * sa + bg.g * (1 - sa);
+      const cb = srcData[srcIdx + 2] * sa + bg.b * (1 - sa);
+      out[outIdx] = cr * bright;
+      out[outIdx + 1] = cg * bright;
+      out[outIdx + 2] = cb * bright;
+      out[outIdx + 3] = 255;
     }
   }
   outCtx.putImageData(outImage, 0, 0);
@@ -1607,16 +1669,52 @@ motionIntensityRange.addEventListener("input", () => {
   updateMotionLabels();
   if (motionTypeSel.value === "monitoring") recomputeMotionSource();
 });
+function updateMotionFieldVisibility() {
+  const type = motionTypeSel.value;
+  const isMonitoring = type === "monitoring";
+  monitoringHint.style.display = isMonitoring ? "block" : "none";
+  monitoringBgColorField.style.display = isMonitoring ? "flex" : "none";
+  monitoringVignetteWholeField.style.display = isMonitoring ? "block" : "none";
+  monitoringVignetteStartField.style.display = isMonitoring ? "block" : "none";
+  monitoringVignetteIntensityField.style.display = isMonitoring ? "block" : "none";
+  // 정지 이미지로 저장되는 종류(움직임 없음/모니터링)는 루프 애니메이션이 없으므로 속도가 의미 없다.
+  motionSpeedField.style.display = STATIC_MOTION_TYPES.includes(type) ? "none" : "block";
+  // 움직임 없음은 어떤 변형도 가하지 않으므로 강도 슬라이더 자체가 의미 없다.
+  motionIntensityField.style.display = type === "none" ? "none" : "block";
+  motionIntensityText.textContent = isMonitoring ? "왜곡 강도" : "강도";
+}
+function updateVignetteLabels() {
+  monitoringVignetteWholeLabel.textContent = monitoringVignetteWholeRange.value;
+  monitoringVignetteStartLabel.textContent = monitoringVignetteStartRange.value;
+  monitoringVignetteIntensityLabel.textContent = monitoringVignetteIntensityRange.value;
+}
 motionTypeSel.addEventListener("change", () => {
   const def = MOTION_DEFAULT_INTENSITY[motionTypeSel.value];
   if (def !== undefined) {
     motionIntensityRange.value = def;
     updateMotionLabels();
   }
-  monitoringHint.style.display = motionTypeSel.value === "monitoring" ? "block" : "none";
+  updateMotionFieldVisibility();
   motionPreviewStart = performance.now();
   recomputeMotionSource();
 });
+monitoringBgColor.addEventListener("input", () => {
+  if (motionTypeSel.value === "monitoring") recomputeMotionSource();
+});
+monitoringVignetteWholeRange.addEventListener("input", () => {
+  updateVignetteLabels();
+  if (motionTypeSel.value === "monitoring") recomputeMotionSource();
+});
+monitoringVignetteStartRange.addEventListener("input", () => {
+  updateVignetteLabels();
+  if (motionTypeSel.value === "monitoring") recomputeMotionSource();
+});
+monitoringVignetteIntensityRange.addEventListener("input", () => {
+  updateVignetteLabels();
+  if (motionTypeSel.value === "monitoring") recomputeMotionSource();
+});
+updateVignetteLabels();
+updateMotionFieldVisibility();
 updateMotionLabels();
 
 function computeMotionTransform(type, t, intensity, w, h) {
