@@ -7,113 +7,123 @@
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
 <style>
   :root {
-    color-scheme: light dark;
-    --bg: #f5f6f8;
-    --card: #ffffff;
-    --text: #1a1a1a;
-    --muted: #6b7280;
-    --border: #e2e4e9;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --accent2: #059669;
-    --accent2-hover: #047857;
-    --danger: #dc2626;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #16181d;
-      --card: #1f2229;
-      --text: #eaeaea;
-      --muted: #9aa0aa;
-      --border: #30333c;
-    }
+    /* "쯔바" 테마(쯔바_테마.json)의 win98Colors 팔레트 - 코코도우미 테마편집기와 동일한 색상 */
+    --surface:#ffebee; --face:#fffafb; --highlight:#fefafb;
+    --shadow:#cb2a4a; --frame:#ff4d6d;
+    --title-l:#ff6b89; --title-r:#fff4d6; --title-text:#ffffff;
+    --text:#4a3f3f; --text-dim:#6a3840;
+    --accent:#fe7c96; --accent-light:#ffcccc;
+    --field-bg:#fff5f5; --scroll-thumb:#dedede; --scroll-track:#ffffff;
+    --danger:#c04040;
+    --border-r: inset -1px -1px var(--frame), inset 1px 1px var(--highlight);
+    --border-ri: inset -2px -2px var(--shadow), inset 2px 2px var(--face);
+    --border-s: inset -1px -1px var(--highlight), inset 1px 1px var(--frame);
+    --border-si: inset -2px -2px var(--face), inset 2px 2px var(--shadow);
+    --border-w: inset -1px -1px var(--frame), inset 1px 1px var(--face);
+    --border-wi: inset -2px -2px var(--shadow), inset 2px 2px var(--highlight);
+    --bg: #ffcccc;
+    font-family:"굴림","Gulim","MS Sans Serif",Arial,sans-serif;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, "Segoe UI", "Malgun Gothic", Roboto, sans-serif;
+    font-size: 12px;
+    -webkit-font-smoothing: none;
     padding: 24px 16px 64px;
   }
+  ::-webkit-scrollbar { width: 16px; height: 16px; }
+  ::-webkit-scrollbar-track { background: var(--scroll-track); }
+  ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); box-shadow: var(--border-r), var(--border-ri); }
   .wrap { max-width: 760px; margin: 0 auto; }
-  h1 { font-size: 22px; margin-bottom: 4px; }
-  p.desc { color: var(--muted); margin-top: 0; font-size: 14px; }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px;
-    margin-bottom: 16px;
+  .titlebar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; margin: -24px -16px 16px;
+    background: linear-gradient(90deg, var(--title-l), var(--title-r));
+    border-bottom: 2px solid var(--frame);
+  }
+  .titlebar h1 { font-size: 18px; margin: 0; font-weight: 900; color: var(--title-text); letter-spacing: .3px; }
+  p.desc { color: var(--text-dim); margin-top: 0; margin-bottom: 16px; font-size: 12px; line-height: 1.6; padding: 0 2px; }
+  .card { background: var(--surface); box-shadow: var(--border-w), var(--border-wi); padding: 0 14px 14px; margin-bottom: 16px; }
+  .card-title {
+    font-size: 12px; color: var(--title-text); margin: 0 -14px 12px; font-weight: 700;
+    padding: 3px 6px; display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(90deg, var(--title-l), var(--title-r));
+    box-shadow: var(--border-r), var(--border-ri);
   }
   .dropzone {
-    border: 2px dashed var(--border);
-    border-radius: 10px;
+    background: var(--field-bg);
+    box-shadow: var(--border-s), var(--border-si);
     padding: 28px 16px;
     text-align: center;
-    color: var(--muted);
+    color: var(--text-dim);
     cursor: pointer;
-    transition: border-color .15s, background .15s;
   }
-  .dropzone.drag { border-color: var(--accent); background: rgba(37,99,235,0.06); }
-  .file-list { list-style: none; padding: 0; margin: 12px 0 0; font-size: 14px; }
+  .dropzone.drag { box-shadow: var(--border-s), var(--border-si), 0 0 0 2px var(--accent); }
+  .file-list { list-style: none; padding: 0; margin: 12px 0 0; font-size: 12px; }
   .file-list li {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 6px 0; border-bottom: 1px solid var(--border);
+    padding: 5px 8px; margin-bottom: 4px;
+    background: var(--face);
+    box-shadow: var(--border-r), var(--border-ri);
   }
-  .file-list li:last-child { border-bottom: none; }
   .file-list button.remove {
-    background: none; border: none; color: var(--danger); cursor: pointer; font-size: 13px;
+    background: var(--surface); border: none; box-shadow: var(--border-r), var(--border-ri);
+    color: var(--danger); cursor: pointer; font-size: 11px; padding: 2px 8px; font-family: inherit;
   }
+  .file-list button.remove:active { box-shadow: var(--border-s), var(--border-si); }
   .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   button.primary, button.secondary {
     flex: 1 1 220px;
-    padding: 12px 14px;
-    border-radius: 8px;
+    padding: 8px 14px;
     border: none;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    color: #fff;
+    background: var(--surface);
+    box-shadow: var(--border-r), var(--border-ri);
+    font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+    color: var(--text);
   }
-  button.primary { background: var(--accent); }
-  button.primary:hover { background: var(--accent-hover); }
-  button.secondary { background: var(--accent2); }
-  button.secondary:hover { background: var(--accent2-hover); }
+  button.primary:hover, button.secondary:hover { background: var(--highlight); }
+  button.primary:active, button.secondary:active { box-shadow: var(--border-s), var(--border-si); }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
   button.ghost {
-    background: none; border: 1px solid var(--border); color: var(--text);
-    padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    background: var(--surface); box-shadow: var(--border-r), var(--border-ri); color: var(--text);
+    padding: 4px 10px; font-size: 11px; cursor: pointer; border: none; font-family: inherit;
   }
+  button.ghost:active { box-shadow: var(--border-s), var(--border-si); }
   .result-item {
     display: flex; gap: 12px; align-items: center;
-    padding: 10px 0; border-bottom: 1px solid var(--border);
+    padding: 8px; margin-bottom: 6px;
+    background: var(--face);
+    box-shadow: var(--border-r), var(--border-ri);
   }
-  .result-item:last-child { border-bottom: none; }
-  .result-item img { width: 48px; height: 48px; object-fit: contain; background: repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50% / 12px 12px; border-radius: 6px; border: 1px solid var(--border); }
-  .result-info { flex: 1; font-size: 13px; }
-  .result-info .name { font-weight: 600; word-break: break-all; }
-  .result-info .meta { color: var(--muted); }
+  .result-item img { width: 48px; height: 48px; object-fit: contain; background: repeating-conic-gradient(#e5c8c8 0% 25%, #fffafb 0% 50%) 50% / 12px 12px; box-shadow: var(--border-s), var(--border-si); }
+  .result-info { flex: 1; font-size: 12px; }
+  .result-info .name { font-weight: 700; word-break: break-all; }
+  .result-info .meta { color: var(--text-dim); }
   .result-info .meta.warn { color: var(--danger); }
   a.download {
-    background: var(--accent);
-    color: #fff; text-decoration: none;
-    padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    background: var(--surface);
+    box-shadow: var(--border-r), var(--border-ri);
+    color: var(--text); text-decoration: none;
+    padding: 6px 12px; font-size: 12px; font-weight: 700;
     white-space: nowrap;
   }
-  #status { font-size: 13px; color: var(--muted); margin-top: 8px; min-height: 18px; }
+  a.download:active { box-shadow: var(--border-s), var(--border-si); }
+  #status { font-size: 12px; color: var(--text-dim); margin-top: 8px; min-height: 18px; }
   #status.error { color: var(--danger); }
   input[type=file] { display: none; }
-  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; }
+  footer { text-align: center; color: var(--text-dim); font-size: 11px; margin-top: 24px; line-height: 1.8; }
   footer a { color: inherit; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>이미지 30x30 / 500KB 변환기</h1>
+  <div class="titlebar"><h1>이미지 30x30 / 500KB 변환기</h1></div>
   <p class="desc">PNG · JPG · GIF(애니메이션 포함)를 30x30px로 리사이즈하거나, 원본 해상도를 최대한 유지하면서 500KB 이하로 압축합니다. 모든 처리는 브라우저 안에서만 이루어지며 파일은 서버로 전송되지 않습니다.</p>
 
   <div class="card">
+    <div class="card-title"><span>파일 선택</span></div>
     <div class="dropzone" id="dropzone">
       이미지를 여기로 끌어다 놓거나 클릭해서 선택하세요<br />
       <small>(PNG, JPG, GIF · 여러 개 선택 가능)</small>
@@ -129,8 +139,8 @@
   </div>
 
   <div class="card" id="resultsCard" style="display:none;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <strong>결과</strong>
+    <div class="card-title">
+      <span>결과</span>
       <button class="ghost" id="btnClearResults">결과 지우기</button>
     </div>
     <div id="results"></div>
