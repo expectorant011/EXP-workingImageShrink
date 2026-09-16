@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>이미지 30x30 / 500KB 변환기</title>
+<title>쯔바 리사이징툴</title>
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
 <style>
   :root {
@@ -31,27 +31,44 @@
     color: var(--text);
     font-size: 12px;
     -webkit-font-smoothing: none;
-    padding: 24px 16px 64px;
   }
   ::-webkit-scrollbar { width: 16px; height: 16px; }
   ::-webkit-scrollbar-track { background: var(--scroll-track); }
   ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); box-shadow: var(--border-r), var(--border-ri); }
-  .wrap { max-width: 760px; margin: 0 auto; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 64px; }
   .titlebar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 12px; margin: -24px -16px 16px;
+    position: sticky; top: 0; z-index: 10;
     background: linear-gradient(90deg, var(--title-l), var(--title-r));
     border-bottom: 2px solid var(--frame);
   }
-  .titlebar h1 { font-size: 18px; margin: 0; font-weight: 900; color: var(--title-text); letter-spacing: .3px; }
+  .titlebar-inner {
+    max-width: 760px; margin: 0 auto; padding: 8px 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .titlebar h1 { font-size: 18px; margin: 0; font-weight: 900; color: var(--title-text); letter-spacing: .3px; display: flex; align-items: center; gap: 8px; }
+  .titlebar h1 img { width: 30px; height: 30px; object-fit: contain; }
   p.desc { color: var(--text-dim); margin-top: 0; margin-bottom: 16px; font-size: 12px; line-height: 1.6; padding: 0 2px; }
   .card { background: var(--surface); box-shadow: var(--border-w), var(--border-wi); padding: 0 14px 14px; margin-bottom: 16px; }
+  .card.win-collapsed { padding-bottom: 0; }
+  .card.win-collapsed > *:not(.card-title) { display: none !important; }
   .card-title {
     font-size: 12px; color: var(--title-text); margin: 0 -14px 12px; font-weight: 700;
-    padding: 3px 6px; display: flex; align-items: center; justify-content: space-between;
+    padding: 3px 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px;
     background: linear-gradient(90deg, var(--title-l), var(--title-r));
     box-shadow: var(--border-r), var(--border-ri);
   }
+  .card-title .win-btns { display: flex; gap: 2px; margin-left: auto; flex-shrink: 0; }
+  .card-title .win-btn {
+    width: 16px; height: 14px; padding: 0; border: none; cursor: pointer;
+    background: var(--surface); color: var(--text);
+    box-shadow: var(--border-r), var(--border-ri);
+    font-size: 8px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    font-family: inherit;
+  }
+  .card-title .win-btn:active { box-shadow: var(--border-s), var(--border-si); }
+  .card-title .win-max::after { content: ''; display: block; width: 7px; height: 6px; border: 1px solid currentColor; }
+  .card-title span.card-title-text { flex: 1; min-width: 0; }
+  .hint { font-size: 11px; color: var(--text-dim); margin: 0 0 10px; line-height: 1.6; }
   .dropzone {
     background: var(--field-bg);
     box-shadow: var(--border-s), var(--border-si);
@@ -63,16 +80,29 @@
   .dropzone.drag { box-shadow: var(--border-s), var(--border-si), 0 0 0 2px var(--accent); }
   .file-list { list-style: none; padding: 0; margin: 12px 0 0; font-size: 12px; }
   .file-list li {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 5px 8px; margin-bottom: 4px;
+    padding: 6px 8px; margin-bottom: 6px;
     background: var(--face);
     box-shadow: var(--border-r), var(--border-ri);
+  }
+  .file-row { display: flex; align-items: center; gap: 8px; }
+  .file-thumb {
+    width: 36px; height: 36px; object-fit: contain; flex-shrink: 0;
+    background: repeating-conic-gradient(#e5c8c8 0% 25%, #fffafb 0% 50%) 50% / 10px 10px;
+    box-shadow: var(--border-s), var(--border-si);
   }
   .file-list button.remove {
     background: var(--surface); border: none; box-shadow: var(--border-r), var(--border-ri);
     color: var(--danger); cursor: pointer; font-size: 11px; padding: 2px 8px; font-family: inherit;
   }
   .file-list button.remove:active { box-shadow: var(--border-s), var(--border-si); }
+  .file-list .file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-list .file-btns { display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px; }
+  .file-list button.crop {
+    background: var(--surface); border: none; box-shadow: var(--border-r), var(--border-ri);
+    color: var(--text); cursor: pointer; font-size: 11px; padding: 2px 8px; font-family: inherit;
+  }
+  .file-list button.crop:active { box-shadow: var(--border-s), var(--border-si); }
+  .file-list button.crop.active { box-shadow: var(--border-s), var(--border-si); color: var(--shadow); font-weight: 700; }
   .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   button.primary, button.secondary {
     flex: 1 1 220px;
@@ -98,8 +128,12 @@
     box-shadow: var(--border-r), var(--border-ri);
   }
   .result-item img { width: 48px; height: 48px; object-fit: contain; background: repeating-conic-gradient(#e5c8c8 0% 25%, #fffafb 0% 50%) 50% / 12px 12px; box-shadow: var(--border-s), var(--border-si); }
-  .result-info { flex: 1; font-size: 12px; }
-  .result-info .name { font-weight: 700; word-break: break-all; }
+  .result-info { flex: 1; font-size: 12px; min-width: 0; }
+  .result-info .name-input {
+    width: 100%; background: var(--field-bg); border: none; color: var(--text);
+    box-shadow: var(--border-s), var(--border-si);
+    padding: 4px 6px; font-size: 12px; font-family: inherit; outline: none; margin-bottom: 3px;
+  }
   .result-info .meta { color: var(--text-dim); }
   .result-info .meta.warn { color: var(--danger); }
   a.download {
@@ -113,17 +147,58 @@
   #status { font-size: 12px; color: var(--text-dim); margin-top: 8px; min-height: 18px; }
   #status.error { color: var(--danger); }
   input[type=file] { display: none; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .field select {
+    width: 100%; background: var(--field-bg); color: var(--text); border: none;
+    box-shadow: var(--border-s), var(--border-si); padding: 6px 7px; font-size: 12px; font-family: inherit;
+  }
+  .field input[type=range] { width: 100%; }
+  .motion-preview-wrap {
+    position: relative;
+    display: flex; justify-content: center; align-items: center;
+    height: 220px; overflow: hidden;
+    background: repeating-conic-gradient(#e5c8c8 0% 25%, #fffafb 0% 50%) 0 0 / 16px 16px;
+    box-shadow: var(--border-s), var(--border-si);
+    margin: 4px 0 12px;
+  }
+  .motion-preview-wrap canvas { max-width: 100%; max-height: 100%; }
+  .preview-corner-tools { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 6px; }
+  .preview-corner-tools .ghost.active { box-shadow: var(--border-s), var(--border-si); color: var(--shadow); font-weight: 700; }
+  .motion-tools-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .motion-tools-row label.checkbox { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-dim); cursor: pointer; }
   footer { text-align: center; color: var(--text-dim); font-size: 11px; margin-top: 24px; line-height: 1.8; }
   footer a { color: inherit; }
+
+  .decoration-wrap { display: flex; justify-content: center; margin-top: 28px; }
+  .decoration-img { width: 240px; height: auto; cursor: pointer; user-select: none; transition: transform .1s; }
+  .decoration-img:hover { transform: scale(1.04); }
+  .decoration-img:active { transform: scale(0.97); }
+
+  .crop-inline {
+    margin-top: 8px; padding: 10px;
+    background: var(--surface);
+    box-shadow: var(--border-s), var(--border-si);
+  }
+  .crop-shape-btn.active { box-shadow: var(--border-s), var(--border-si); color: var(--shadow); font-weight: 700; }
+  .crop-canvas-wrap { display: flex; justify-content: center; padding: 8px 0; background: var(--bg); }
+  .crop-canvas-wrap canvas { cursor: move; box-shadow: var(--border-s), var(--border-si); }
+  .crop-controls { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 12px; color: var(--text-dim); }
+  .crop-controls input[type=range] { flex: 1; }
+  .crop-actions { display: flex; gap: 8px; justify-content: flex-end; }
 </style>
 </head>
 <body>
+<div class="titlebar"><div class="titlebar-inner"><h1><img src="icon.png" alt="" />쯔바 리사이징툴</h1></div></div>
 <div class="wrap">
-  <div class="titlebar"><h1>이미지 30x30 / 500KB 변환기</h1></div>
-  <p class="desc">PNG · JPG · GIF(애니메이션 포함)를 30x30px로 리사이즈하거나, 원본 해상도를 최대한 유지하면서 500KB 이하로 압축합니다. 모든 처리는 브라우저 안에서만 이루어지며 파일은 서버로 전송되지 않습니다.</p>
+  <p class="desc">
+    투게더워킹 이모티콘에 최적화된 이미지 리사이징 툴입니다.<br /><br />
+    PNG · JPG · GIF(애니메이션 포함)를 30x30px로 리사이즈하거나, 원본 해상도를 최대한 유지하면서 500KB 이하로 압축합니다. 모든 처리는 브라우저 안에서만 이루어지며 파일은 서버로 전송되지 않습니다.
+  </p>
 
-  <div class="card">
-    <div class="card-title"><span>파일 선택</span></div>
+  <div class="card" data-reset="files">
+    <div class="card-title"><span class="card-title-text">이모티콘 리사이징</span><span class="win-btns"><button type="button" class="win-btn win-min" title="최소화">━</button><button type="button" class="win-btn win-max" title="최대화"></button><button type="button" class="win-btn win-close" title="닫기">✕</button></span></div>
+    <p class="hint">이미지를 정사각형으로 크롭할 수 있습니다.</p>
     <div class="dropzone" id="dropzone">
       이미지를 여기로 끌어다 놓거나 클릭해서 선택하세요<br />
       <small>(PNG, JPG, GIF · 여러 개 선택 가능)</small>
@@ -138,15 +213,89 @@
     <div id="status"></div>
   </div>
 
-  <div class="card" id="resultsCard" style="display:none;">
+  <div class="card" data-reset="motion">
+    <div class="card-title"><span class="card-title-text">움직이는 GIF 만들기</span><span class="win-btns"><button type="button" class="win-btn win-min" title="최소화">━</button><button type="button" class="win-btn win-max" title="최대화"></button><button type="button" class="win-btn win-close" title="닫기">✕</button></span></div>
+    <p class="hint">정지 이미지 1장을 넣으면 루프 애니메이션 GIF로 만들어줍니다. 이미지를 정사각형으로 크롭할 수 있습니다.</p>
+    <div class="dropzone" id="motionDropzone">
+      이미지를 여기로 끌어다 놓거나 클릭해서 선택하세요<br />
+      <small>(PNG, JPG · 1장)</small>
+    </div>
+    <input type="file" id="motionFileInput" accept=".png,.jpg,.jpeg,image/png,image/jpeg" />
+
+    <div id="motionEditor" style="display:none;">
+      <div class="field">
+        <label>움직임 종류</label>
+        <select id="motionType">
+          <option value="none">움직임 없음</option>
+          <option value="bounce">통통</option>
+          <option value="rock">흔들흔들</option>
+          <option value="jitter">덜덜</option>
+          <option value="slide">왔다갔다</option>
+          <option value="pulse">두근두근</option>
+          <option value="spin">빙글빙글</option>
+          <option value="dizzy">어질어질</option>
+          <option value="monitoring">모니터링</option>
+        </select>
+        <p class="hint" id="monitoringHint" style="margin-top:6px;display:none;">애니메이션이 없어 이미지 파일로 저장됩니다.</p>
+      </div>
+      <div class="field">
+        <label>속도 (<span id="motionSpeedLabel"></span>)</label>
+        <input type="range" id="motionSpeed" min="1" max="100" value="50" />
+      </div>
+      <div class="field">
+        <label>강도 (<span id="motionIntensityLabel"></span>%)</label>
+        <input type="range" id="motionIntensity" min="1" max="100" value="50" />
+      </div>
+      <div class="motion-preview-wrap">
+        <canvas id="motionPreviewCanvas"></canvas>
+        <div class="preview-corner-tools">
+          <button class="ghost" type="button" id="motionCropBtn">✂ 크롭</button>
+          <button class="ghost" type="button" id="motionBgToggleBtn">배경 제거</button>
+        </div>
+      </div>
+      <span id="motionCropStatus" style="font-size:11px;color:var(--text-dim);"></span>
+      <div id="motionCropMount"></div>
+      <div id="motionBgOptions" style="display:none;">
+        <div class="field">
+          <label>제거할 배경색 (여러 개 지정 가능)</label>
+          <div id="motionBgColorList" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:22px;"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+            <button class="ghost" type="button" id="motionBgPickBtn">스포이드로 색 추가</button>
+            <button class="ghost" type="button" id="motionBgAutoBtn">전부 지우고 자동 감지로</button>
+          </div>
+          <p class="hint" style="margin-top:6px;">
+            기본값은 이미지 가장자리 색을 자동으로 사용합니다. "스포이드로 색 추가"를 누른 뒤 미리보기를 클릭하면 그 색이 목록에 추가됩니다.
+            미리보기 화면을 마우스 우클릭하면, 스포이드 버튼을 누르지 않아도 그 자리의 색이 바로 배경색 목록에 추가되어 제거됩니다.
+            반대로 좌클릭하면 그 자리를 복구합니다.
+          </p>
+        </div>
+        <div class="field">
+          <label>배경 제거 경계값 - 색상 허용 오차 (<span id="motionBgThresholdLabel"></span>)</label>
+          <input type="range" id="motionBgThreshold" min="5" max="100" value="32" />
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="motionSaveOriginal">원본사이즈로 저장</button>
+        <button class="secondary" id="motionSave30">30픽셀로 저장</button>
+        <button class="secondary" id="motionSave500">500KB 이하로 저장</button>
+      </div>
+      <div id="motionStatus"></div>
+    </div>
+  </div>
+
+  <div class="card" id="resultsCard" data-reset="results" style="display:none;">
     <div class="card-title">
-      <span>결과</span>
+      <span class="card-title-text">결과</span>
       <button class="ghost" id="btnClearResults">결과 지우기</button>
+      <span class="win-btns"><button type="button" class="win-btn win-min" title="최소화">━</button><button type="button" class="win-btn win-max" title="최대화"></button><button type="button" class="win-btn win-close" title="닫기">✕</button></span>
     </div>
     <div id="results"></div>
   </div>
 
-  <footer>브라우저에서 동작하는 정적 페이지입니다 · 소스: index.html</footer>
+  <div class="decoration-wrap">
+    <img id="decorationImg" class="decoration-img" src="decoration.png" alt="쯔바" />
+  </div>
+
 </div>
 
 <script type="module">
@@ -178,26 +327,77 @@ function addFiles(fileListLike) {
   const accepted = /\.(png|jpe?g|gif)$/i;
   for (const f of fileListLike) {
     if (!accepted.test(f.name)) continue;
-    if (selectedFiles.some(s => s.name === f.name && s.size === f.size && s.lastModified === f.lastModified)) continue;
-    selectedFiles.push(f);
+    if (selectedFiles.some(s => s.file.name === f.name && s.file.size === f.size && s.file.lastModified === f.lastModified)) continue;
+    selectedFiles.push({ file: f, cropRect: null, previewUrl: URL.createObjectURL(f) });
   }
   renderFileList();
 }
 
 function renderFileList() {
   fileListEl.innerHTML = "";
-  selectedFiles.forEach((f, idx) => {
+  selectedFiles.forEach((item, idx) => {
     const li = document.createElement("li");
+
+    const row = document.createElement("div");
+    row.className = "file-row";
+
+    const thumb = document.createElement("img");
+    thumb.className = "file-thumb";
+    thumb.src = item.previewCroppedUrl || item.previewUrl;
+    thumb.alt = "";
+
     const label = document.createElement("span");
-    label.textContent = `${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
+    label.className = "file-name";
+    const cropTag = item.cropRect ? " ✂ 크롭됨" : "";
+    label.textContent = `${item.file.name} (${(item.file.size / 1024).toFixed(1)} KB)${cropTag}`;
+
+    const btnGroup = document.createElement("div");
+    btnGroup.className = "file-btns";
+
+    const cropKey = `file:${idx}`;
+    const cropBtn = document.createElement("button");
+    cropBtn.className = "crop" + (item.cropRect ? " active" : "");
+    cropBtn.textContent = cropActiveKey === cropKey ? "닫기" : "크롭";
+    cropBtn.onclick = () => openCropSession(cropKey, item.file, item.cropRect, {
+      onApply: async rect => {
+        item.cropRect = rect;
+        const croppedBlob = await canvasToBlob(cropSource(cropSourceImg, rect), "image/png");
+        if (item.previewCroppedUrl) URL.revokeObjectURL(item.previewCroppedUrl);
+        item.previewCroppedUrl = URL.createObjectURL(croppedBlob);
+      },
+      onReset: () => {
+        item.cropRect = null;
+        if (item.previewCroppedUrl) { URL.revokeObjectURL(item.previewCroppedUrl); item.previewCroppedUrl = null; }
+      },
+      rerender: renderFileList,
+    });
+
     const removeBtn = document.createElement("button");
     removeBtn.className = "remove";
     removeBtn.textContent = "삭제";
-    removeBtn.onclick = () => { selectedFiles.splice(idx, 1); renderFileList(); };
-    li.appendChild(label);
-    li.appendChild(removeBtn);
+    removeBtn.onclick = () => {
+      URL.revokeObjectURL(item.previewUrl);
+      if (item.previewCroppedUrl) URL.revokeObjectURL(item.previewCroppedUrl);
+      if (cropActiveKey === cropKey) closeCropPanel();
+      selectedFiles.splice(idx, 1);
+      renderFileList();
+    };
+
+    btnGroup.append(cropBtn, removeBtn);
+    row.append(thumb, label, btnGroup);
+    li.appendChild(row);
+
+    if (cropActiveKey === cropKey) {
+      li.appendChild(buildCropPanel());
+    }
+
     fileListEl.appendChild(li);
   });
+
+  if (cropActiveKey && cropActiveKey.startsWith("file:")) {
+    wireCropPanel();
+    drawCropCanvas();
+  }
 }
 
 function setStatus(text, isError = false) {
@@ -219,6 +419,23 @@ function drawToCanvas(source, w, h) {
 
 function canvasToBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+function cropSource(source, rect) {
+  if (!rect) return source;
+  const canvas = document.createElement("canvas");
+  canvas.width = rect.size;
+  canvas.height = rect.size;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(source, rect.x, rect.y, rect.size, rect.size, 0, 0, rect.size, rect.size);
+  if (rect.shape === "circle") {
+    // 정사각형으로 자른 뒤, 그 안에 꽉 차는 원 밖은 투명하게 잘라낸다.
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.beginPath();
+    ctx.arc(rect.size / 2, rect.size / 2, rect.size / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return canvas;
 }
 
 function* downscaleSteps(w, h, factor = 0.85, minDim = 16) {
@@ -285,8 +502,9 @@ async function compressKeepSize(bitmap, mime, jpeg) {
   return { blob: lastBlob, width: lastW, height: lastH };
 }
 
-async function processStatic(file, resize) {
-  const bitmap = await createImageBitmap(file);
+async function processStatic(file, resize, cropRect) {
+  const bitmap0 = await createImageBitmap(file);
+  const bitmap = cropSource(bitmap0, cropRect);
   const jpeg = isJpeg(file);
   const mime = jpeg ? "image/jpeg" : "image/png";
   const ext = jpeg ? "jpg" : "png";
@@ -301,7 +519,7 @@ async function processStatic(file, resize) {
   } else {
     result = await compressKeepSize(bitmap, mime, jpeg);
   }
-  if (bitmap.close) bitmap.close();
+  if (bitmap0.close) bitmap0.close();
   return { ...result, ext, suffix: resize ? "30x30" : "500kb" };
 }
 
@@ -443,8 +661,13 @@ async function encodeGif(frames, width, height, transparentColor) {
   });
 }
 
-async function processGif(file, resize) {
-  const { width, height, frames } = await decodeGif(file);
+async function processGif(file, resize, cropRect) {
+  let { width, height, frames } = await decodeGif(file);
+  if (cropRect) {
+    frames = frames.map(f => ({ canvas: cropSource(f.canvas, cropRect), delay: f.delay }));
+    width = cropRect.size;
+    height = cropRect.size;
+  }
   const hasAlpha = frames.some(f => frameHasAlpha(f.canvas));
   const transparentColor = hasAlpha ? pickTransparentColor(frames) : null;
 
@@ -484,9 +707,9 @@ async function processGif(file, resize) {
 }
 
 // ---------- 실행 ----------
-async function processFile(file, resize) {
-  if (isGif(file)) return await processGif(file, resize);
-  return await processStatic(file, resize);
+async function processFile(file, resize, cropRect) {
+  if (isGif(file)) return await processGif(file, resize, cropRect);
+  return await processStatic(file, resize, cropRect);
 }
 
 function baseName(name) {
@@ -516,14 +739,28 @@ function addResult(file, outcome, error) {
 
   const info = document.createElement("div");
   info.className = "result-info";
-  info.innerHTML = `<div class="name">${outName}</div>
-    <div class="meta ${overLimit ? "warn" : ""}">${width}x${height}px · ${sizeKb} KB${overLimit ? " (500KB 초과)" : ""}</div>`;
+
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.className = "name-input";
+  nameInput.value = outName;
+  nameInput.spellcheck = false;
+
+  const meta = document.createElement("div");
+  meta.className = `meta ${overLimit ? "warn" : ""}`;
+  meta.textContent = `${width}x${height}px · ${sizeKb} KB${overLimit ? " (500KB 초과)" : ""}`;
+
+  info.append(nameInput, meta);
 
   const link = document.createElement("a");
   link.className = "download";
   link.href = url;
   link.download = outName;
   link.textContent = "다운로드";
+
+  nameInput.addEventListener("input", () => {
+    link.download = nameInput.value.trim() || outName;
+  });
 
   item.appendChild(img);
   item.appendChild(info);
@@ -539,15 +776,15 @@ async function runConvert(resize) {
   btnResize.disabled = true;
   btnCompress.disabled = true;
   let done = 0, failed = 0;
-  for (const file of selectedFiles) {
-    setStatus(`처리 중... (${done + failed + 1}/${selectedFiles.length}) ${file.name}`);
+  for (const item of selectedFiles) {
+    setStatus(`처리 중... (${done + failed + 1}/${selectedFiles.length}) ${item.file.name}`);
     try {
-      const outcome = await processFile(file, resize);
-      addResult(file, outcome);
+      const outcome = await processFile(item.file, resize, item.cropRect);
+      addResult(item.file, outcome);
       done++;
     } catch (e) {
       console.error(e);
-      addResult(file, null, e);
+      addResult(item.file, null, e);
       failed++;
     }
   }
@@ -560,9 +797,1162 @@ const btnResize = document.getElementById("btnResize");
 const btnCompress = document.getElementById("btnCompress");
 btnResize.addEventListener("click", () => runConvert(true));
 btnCompress.addEventListener("click", () => runConvert(false));
-document.getElementById("btnClearResults").addEventListener("click", () => {
-  resultsEl.innerHTML = "";
-  resultsCard.style.display = "none";
+document.getElementById("btnClearResults").addEventListener("click", () => resetCardData("results"));
+
+// ---------- 정사각형 크롭 도구 (파일 목록/움직이는 GIF 도구 양쪽에서 공용으로 사용) ----------
+let cropActiveKey = null; // 예: "file:2" 또는 "motion"
+let cropSourceImg = null; // 크롭 대상 이미지(비트맵 또는 GIF 첫 프레임 캔버스)
+let cropNatural = { w: 0, h: 0 };
+let cropDisplayScale = 1;
+let cropRectState = null; // { x, y, size } - 원본 이미지 픽셀 좌표
+let cropDragging = false;
+let cropDragStart = null;
+let cropResizing = false;
+let cropResizeStart = null;
+let cropCallbacks = null; // { onApply(rect), onReset(), rerender() }
+const CROP_HANDLE_RADIUS = 10; // 크롭 크기 조절 손잡이의 클릭 허용 반경(화면 px)
+
+function buildCropPanel() {
+  const wrap = document.createElement("div");
+  wrap.className = "crop-inline";
+  wrap.innerHTML = `
+    <div class="crop-canvas-wrap"><canvas id="cropCanvas"></canvas></div>
+    <div class="crop-shape-row" style="display:flex;gap:8px;margin-bottom:8px;">
+      <button type="button" class="ghost crop-shape-btn" data-shape="square">정사각형</button>
+      <button type="button" class="ghost crop-shape-btn" data-shape="circle">원형</button>
+    </div>
+    <div class="crop-controls">
+      <label for="cropSizeRange">크롭 크기</label>
+      <input type="range" id="cropSizeRange" />
+    </div>
+    <div class="crop-actions">
+      <button class="ghost" id="cropResetBtn" type="button">크롭 해제</button>
+      <button class="ghost" id="cropCancelBtn" type="button">취소</button>
+      <button class="primary" id="cropApplyBtn" type="button" style="flex:none;">적용</button>
+    </div>
+  `;
+  return wrap;
+}
+
+async function openCropSession(key, file, existingRect, callbacks) {
+  if (cropActiveKey === key) {
+    closeCropPanel();
+    callbacks.rerender();
+    return;
+  }
+  cleanupCropSource();
+  if (isGif(file)) {
+    const { width, height, frames } = await decodeGif(file);
+    cropSourceImg = frames[0].canvas;
+    cropNatural = { w: width, h: height };
+  } else {
+    cropSourceImg = await createImageBitmap(file);
+    cropNatural = { w: cropSourceImg.width, h: cropSourceImg.height };
+  }
+  const maxSquare = Math.min(cropNatural.w, cropNatural.h);
+  cropRectState = existingRect
+    ? { shape: "square", ...existingRect }
+    : { size: maxSquare, x: (cropNatural.w - maxSquare) / 2, y: (cropNatural.h - maxSquare) / 2, shape: "square" };
+  cropActiveKey = key;
+  cropCallbacks = callbacks;
+  callbacks.rerender();
+}
+
+function cleanupCropSource() {
+  if (cropSourceImg && cropSourceImg.close) cropSourceImg.close();
+  cropSourceImg = null;
+}
+
+function closeCropPanel() {
+  cleanupCropSource();
+  cropActiveKey = null;
+  cropCallbacks = null;
+}
+
+function wireCropPanel() {
+  const canvas = document.getElementById("cropCanvas");
+  const range = document.getElementById("cropSizeRange");
+  if (!canvas || !range) return;
+
+  const maxSquare = Math.min(cropNatural.w, cropNatural.h);
+  range.min = Math.max(10, Math.round(maxSquare * 0.1));
+  range.max = maxSquare;
+  range.value = cropRectState.size;
+
+  document.querySelectorAll(".crop-shape-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.shape === (cropRectState.shape || "square"));
+    btn.addEventListener("click", () => {
+      cropRectState.shape = btn.dataset.shape;
+      document.querySelectorAll(".crop-shape-btn").forEach(b => b.classList.toggle("active", b === btn));
+      drawCropCanvas();
+    });
+  });
+
+  canvas.addEventListener("mousedown", e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    if (pointInResizeHandle(mx, my)) {
+      cropResizing = true;
+      cropResizeStart = { mx, my, size: cropRectState.size };
+      return;
+    }
+    if (!pointInCropRect(mx, my)) return;
+    cropDragging = true;
+    cropDragStart = { mx, my, ox: cropRectState.x, oy: cropRectState.y };
+  });
+
+  range.addEventListener("input", () => {
+    const newSize = parseInt(range.value, 10);
+    const cx = cropRectState.x + cropRectState.size / 2;
+    const cy = cropRectState.y + cropRectState.size / 2;
+    cropRectState.size = newSize;
+    cropRectState.x = Math.max(0, Math.min(cx - newSize / 2, cropNatural.w - newSize));
+    cropRectState.y = Math.max(0, Math.min(cy - newSize / 2, cropNatural.h - newSize));
+    drawCropCanvas();
+  });
+
+  document.getElementById("cropApplyBtn").addEventListener("click", async () => {
+    const rect = {
+      x: Math.round(cropRectState.x),
+      y: Math.round(cropRectState.y),
+      size: Math.round(cropRectState.size),
+      shape: cropRectState.shape || "square",
+    };
+    const cb = cropCallbacks;
+    await cb.onApply(rect);
+    closeCropPanel();
+    cb.rerender();
+  });
+  document.getElementById("cropResetBtn").addEventListener("click", () => {
+    const cb = cropCallbacks;
+    cb.onReset();
+    closeCropPanel();
+    cb.rerender();
+  });
+  document.getElementById("cropCancelBtn").addEventListener("click", () => {
+    const cb = cropCallbacks;
+    closeCropPanel();
+    cb.rerender();
+  });
+}
+
+function drawCropCanvas() {
+  const canvas = document.getElementById("cropCanvas");
+  if (!canvas || !cropSourceImg) return;
+  const ctx = canvas.getContext("2d");
+  const maxDisplay = 320;
+  const scale = Math.min(maxDisplay / cropNatural.w, maxDisplay / cropNatural.h, 1);
+  cropDisplayScale = scale;
+  canvas.width = Math.round(cropNatural.w * scale);
+  canvas.height = Math.round(cropNatural.h * scale);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(cropSourceImg, 0, 0, canvas.width, canvas.height);
+
+  const rx = cropRectState.x * scale, ry = cropRectState.y * scale, rs = cropRectState.size * scale;
+  const isCircle = cropRectState.shape === "circle";
+
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.beginPath();
+  if (isCircle) {
+    ctx.arc(rx + rs / 2, ry + rs / 2, rs / 2, 0, Math.PI * 2);
+  } else {
+    ctx.rect(rx, ry, rs, rs);
+  }
+  ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle = "#fe7c96";
+  ctx.lineWidth = 2;
+  if (isCircle) {
+    ctx.beginPath();
+    ctx.arc(rx + rs / 2, ry + rs / 2, rs / 2, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    ctx.strokeRect(rx, ry, rs, rs);
+  }
+
+  // 크기 조절 손잡이 - 우하단 모서리에 작은 사각형으로 표시. 여기를 드래그하면 크기가 바뀐다.
+  const hx = rx + rs, hy = ry + rs;
+  ctx.fillStyle = "#fe7c96";
+  ctx.fillRect(hx - 5, hy - 5, 10, 10);
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(hx - 5, hy - 5, 10, 10);
+}
+
+function pointInCropRect(mx, my) {
+  const rx = cropRectState.x * cropDisplayScale, ry = cropRectState.y * cropDisplayScale, rs = cropRectState.size * cropDisplayScale;
+  return mx >= rx && mx <= rx + rs && my >= ry && my <= ry + rs;
+}
+
+function pointInResizeHandle(mx, my) {
+  const rx = cropRectState.x * cropDisplayScale, ry = cropRectState.y * cropDisplayScale, rs = cropRectState.size * cropDisplayScale;
+  const hx = rx + rs, hy = ry + rs;
+  return Math.abs(mx - hx) <= CROP_HANDLE_RADIUS && Math.abs(my - hy) <= CROP_HANDLE_RADIUS;
+}
+
+window.addEventListener("mousemove", e => {
+  if (!cropDragging && !cropResizing) return;
+  const canvas = document.getElementById("cropCanvas");
+  if (!canvas) { cropDragging = false; cropResizing = false; return; }
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+  if (cropResizing) {
+    // 대각선 이동량의 평균으로 크기를 조절한다 (왼쪽 위 모서리는 고정, 오른쪽/아래로 늘리면 커짐).
+    const dx = (mx - cropResizeStart.mx) / cropDisplayScale;
+    const dy = (my - cropResizeStart.my) / cropDisplayScale;
+    const delta = (dx + dy) / 2;
+    const maxSquare = Math.min(cropNatural.w, cropNatural.h);
+    const minSize = Math.max(10, Math.round(maxSquare * 0.1));
+    const maxSize = Math.min(cropNatural.w - cropRectState.x, cropNatural.h - cropRectState.y);
+    const newSize = Math.max(minSize, Math.min(maxSize, Math.round(cropResizeStart.size + delta)));
+    cropRectState.size = newSize;
+    const range = document.getElementById("cropSizeRange");
+    if (range) range.value = newSize;
+    drawCropCanvas();
+    return;
+  }
+
+  const dx = (mx - cropDragStart.mx) / cropDisplayScale;
+  const dy = (my - cropDragStart.my) / cropDisplayScale;
+  cropRectState.x = Math.max(0, Math.min(cropDragStart.ox + dx, cropNatural.w - cropRectState.size));
+  cropRectState.y = Math.max(0, Math.min(cropDragStart.oy + dy, cropNatural.h - cropRectState.size));
+  drawCropCanvas();
+});
+window.addEventListener("mouseup", () => { cropDragging = false; cropResizing = false; });
+
+// ---------- 움직이는 GIF 만들기 ----------
+const motionDropzone = document.getElementById("motionDropzone");
+const motionFileInput = document.getElementById("motionFileInput");
+const motionEditor = document.getElementById("motionEditor");
+const motionTypeSel = document.getElementById("motionType");
+const motionSpeedRange = document.getElementById("motionSpeed");
+const motionIntensityRange = document.getElementById("motionIntensity");
+const motionSpeedLabel = document.getElementById("motionSpeedLabel");
+const motionIntensityLabel = document.getElementById("motionIntensityLabel");
+const motionPreviewCanvas = document.getElementById("motionPreviewCanvas");
+const motionStatusEl = document.getElementById("motionStatus");
+const motionSaveOriginalBtn = document.getElementById("motionSaveOriginal");
+const motionSave30Btn = document.getElementById("motionSave30");
+const motionSave500Btn = document.getElementById("motionSave500");
+const motionCropBtn = document.getElementById("motionCropBtn");
+const motionCropMount = document.getElementById("motionCropMount");
+const motionCropStatus = document.getElementById("motionCropStatus");
+const motionBgToggleBtn = document.getElementById("motionBgToggleBtn");
+const motionBgOptions = document.getElementById("motionBgOptions");
+const motionBgPickBtn = document.getElementById("motionBgPickBtn");
+const motionBgAutoBtn = document.getElementById("motionBgAutoBtn");
+const motionBgColorList = document.getElementById("motionBgColorList");
+const motionBgThresholdRange = document.getElementById("motionBgThreshold");
+const motionBgThresholdLabel = document.getElementById("motionBgThresholdLabel");
+const monitoringHint = document.getElementById("monitoringHint");
+
+const MOTION_DEFAULT_INTENSITY = { bounce: 50, rock: 50, jitter: 50, slide: 20, pulse: 50, spin: 24, dizzy: 50, monitoring: 50 };
+const STATIC_MOTION_TYPES = ["none", "monitoring"]; // 애니메이션이 없어 GIF 대신 이미지 파일로 저장되는 종류
+const BG_REMOVE_MAX_DEPTH = Infinity; // 배경 제거 시 가장자리에서부터 파고드는 거리 제한을 두지 않음
+
+let motionOriginalFile = null;   // 업로드한 원본 File
+let motionOriginalBitmap = null; // 원본 ImageBitmap (크롭/배경제거 전 기준)
+let motionSourceBitmap = null;   // 실제 애니메이션에 쓰이는 캔버스 (크롭/배경제거 반영됨)
+let motionSourceName = "motion.png";
+let motionCropRect = null;
+let motionBgRemoved = false;
+let motionPreviewRAF = null;
+let motionPreviewStart = 0;
+
+motionDropzone.addEventListener("click", () => motionFileInput.click());
+["dragenter", "dragover"].forEach(evt =>
+  motionDropzone.addEventListener(evt, e => { e.preventDefault(); motionDropzone.classList.add("drag"); })
+);
+["dragleave", "drop"].forEach(evt =>
+  motionDropzone.addEventListener(evt, e => { e.preventDefault(); motionDropzone.classList.remove("drag"); })
+);
+motionDropzone.addEventListener("drop", e => {
+  const f = e.dataTransfer.files[0];
+  if (f) loadMotionSource(f);
+});
+motionFileInput.addEventListener("change", () => {
+  const f = motionFileInput.files[0];
+  if (f) loadMotionSource(f);
+});
+
+async function loadMotionSource(file) {
+  if (motionOriginalBitmap && motionOriginalBitmap.close) motionOriginalBitmap.close();
+  motionOriginalFile = file;
+  motionOriginalBitmap = await createImageBitmap(file);
+  motionSourceName = file.name;
+  motionCropRect = null;
+  motionBgRemoved = false;
+  motionBgOptions.style.display = "none";
+  motionBgColors = [];
+  motionRestorePoints = [];
+  updateBgToggleUI();
+  renderBgColorList();
+  updateBgOptionLabels();
+  recomputeMotionSource();
+  motionEditor.style.display = "block";
+  renderMotionCropUI();
+  startMotionPreview();
+}
+
+let motionBgColors = []; // [[r,g,b], ...] - 스포이드/우클릭으로 직접 지정한 배경색들 (비어있으면 자동 감지)
+let motionRestorePoints = []; // [{x,y}, ...] - 좌클릭으로 복구 지정한 지점들 (원본 이미지 좌표)
+
+function renderBgColorList() {
+  motionBgColorList.innerHTML = "";
+  if (motionBgColors.length === 0) {
+    const span = document.createElement("span");
+    span.style.cssText = "font-size:11px;color:var(--text-dim);";
+    span.textContent = "(자동 감지 중)";
+    motionBgColorList.appendChild(span);
+    return;
+  }
+  motionBgColors.forEach((c, i) => {
+    const chip = document.createElement("span");
+    chip.style.cssText = "display:inline-flex;align-items:center;gap:4px;background:var(--field-bg);box-shadow:var(--border-s),var(--border-si);padding:2px 4px;";
+    const swatch = document.createElement("span");
+    swatch.style.cssText = `display:inline-block;width:16px;height:16px;background:rgb(${c[0]},${c[1]},${c[2]});box-shadow:var(--border-r),var(--border-ri);`;
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.textContent = "×";
+    removeBtn.style.cssText = "border:none;background:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0 2px;font-family:inherit;";
+    removeBtn.onclick = () => {
+      motionBgColors.splice(i, 1);
+      renderBgColorList();
+      if (motionBgRemoved) recomputeMotionSource();
+    };
+    chip.append(swatch, removeBtn);
+    motionBgColorList.appendChild(chip);
+  });
+}
+
+function updateBgToggleUI() {
+  motionBgToggleBtn.classList.toggle("active", motionBgRemoved);
+  motionBgOptions.style.display = motionBgRemoved ? "block" : "none";
+}
+
+function addBgColor(rgb) {
+  motionBgColors.push(rgb);
+  renderBgColorList();
+  if (!motionBgRemoved) {
+    motionBgRemoved = true;
+    updateBgToggleUI();
+  }
+  recomputeMotionSource();
+}
+
+function recomputeMotionSource() {
+  let canvas = motionCropRect
+    ? cropSource(motionOriginalBitmap, motionCropRect)
+    : drawToCanvas(motionOriginalBitmap, motionOriginalBitmap.width, motionOriginalBitmap.height);
+  if (motionBgRemoved) {
+    const threshold = parseInt(motionBgThresholdRange.value, 10);
+    canvas = removeSolidBackground(canvas, threshold, BG_REMOVE_MAX_DEPTH, motionBgColors, motionRestorePoints);
+  }
+  if (motionTypeSel.value === "monitoring") {
+    const strength = motionIntensityRatio();
+    canvas = applyFisheyeFilter(canvas, strength);
+  }
+  motionSourceBitmap = canvas;
+  motionPreviewStart = performance.now();
+}
+
+// 볼록렌즈(어안) + 원형 비네팅 필터 - CCTV/피시아이 렌즈로 본 것 같은 효과.
+// 정사각형 캔버스를 기준으로, 중심에서 가까운 부분은 늘리고(부풀림) 바깥은 압축한 뒤,
+// 안에 꽉 차는 원 밖은 전부 검게 칠한다.
+function applyFisheyeFilter(source, strength) {
+  const w = source.width, h = source.height;
+  const srcCanvas = document.createElement("canvas");
+  srcCanvas.width = w; srcCanvas.height = h;
+  const srcCtx = srcCanvas.getContext("2d", { willReadFrequently: true });
+  srcCtx.drawImage(source, 0, 0);
+  const srcData = srcCtx.getImageData(0, 0, w, h).data;
+
+  const outCanvas = document.createElement("canvas");
+  outCanvas.width = w; outCanvas.height = h;
+  const outCtx = outCanvas.getContext("2d");
+  const outImage = outCtx.createImageData(w, h);
+  const out = outImage.data;
+
+  const cx = w / 2, cy = h / 2;
+  const radius = Math.min(w, h) / 2;
+  const power = 1 + strength * 1.8; // 강도가 셀수록 중앙 확대가 심해짐
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const outIdx = (y * w + x) * 4;
+      const dx = (x - cx) / radius, dy = (y - cy) / radius;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r > 1) {
+        out[outIdx] = 0; out[outIdx + 1] = 0; out[outIdx + 2] = 0; out[outIdx + 3] = 255;
+        continue;
+      }
+      const rn = Math.pow(r, power);
+      const theta = Math.atan2(dy, dx);
+      const srcX = Math.min(w - 1, Math.max(0, Math.round(cx + Math.cos(theta) * rn * radius)));
+      const srcY = Math.min(h - 1, Math.max(0, Math.round(cy + Math.sin(theta) * rn * radius)));
+      const srcIdx = (srcY * w + srcX) * 4;
+      const vignette = 1 - Math.pow(r, 3) * 0.45;
+      out[outIdx] = srcData[srcIdx] * vignette;
+      out[outIdx + 1] = srcData[srcIdx + 1] * vignette;
+      out[outIdx + 2] = srcData[srcIdx + 2] * vignette;
+      out[outIdx + 3] = srcData[srcIdx + 3];
+    }
+  }
+  outCtx.putImageData(outImage, 0, 0);
+  return outCanvas;
+}
+
+// 가장자리부터 배경색과 비슷한 픽셀을 flood-fill로만 제거한다 (색만으로 판단하면 안쪽에 같은 색
+// 오브젝트가 있을 때 그것까지 지워버리므로, 가장자리와 "연결된" 영역만 지운다).
+// maxDepth: 가장자리에서 최대 몇 픽셀까지 파고들어 지울지 제한 - 테두리가 배경색과 비슷한 경우
+// (예: 검은 배경 + 검은 테두리 오브젝트) flood-fill이 테두리를 뚫고 안쪽까지 침범하는 것을 막기 위함.
+// extraColors(스포이드/우클릭으로 지정한 색 목록)와 자동 감지한 가장자리 색을 모두 후보로 두고,
+// 픽셀이 그 중 하나라도 가까우면(threshold 이내) 배경으로 판단한다.
+// restorePoints(좌클릭으로 지정한 지점들)가 있으면, 그 지점에서부터 "지워질 예정이던 영역"만 다시
+// flood-fill로 훑어서 복구한다 - 색이 다른 테두리나 depth 한계에 막힌 지점까지만 번져서
+// 그 안쪽(같은 색으로 연결된 영역) 전체가 복구된다.
+function removeSolidBackground(source, threshold = 32, maxDepth = 40, extraColors = [], restorePoints = []) {
+  const w = source.width, h = source.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(source, 0, 0);
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+
+  const isOpaqueEnough = i => d[i + 3] >= 10;
+
+  const colors = [...extraColors];
+  // 자동 감지: 이미 투명한 픽셀은 색이 의미가 없으므로(투명 아래 남은 쓰레기 RGB일 수 있음) 제외하고
+  // 모서리 -> 위/아래 가장자리 -> 좌/우 가장자리 순으로 첫 불투명 픽셀 색을 찾는다.
+  const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+  let sr = 0, sg = 0, sb = 0, count = 0;
+  corners.forEach(([x, y]) => {
+    const i = (y * w + x) * 4;
+    if (isOpaqueEnough(i)) { sr += d[i]; sg += d[i + 1]; sb += d[i + 2]; count++; }
+  });
+  if (count === 0) {
+    outer: for (let x = 0; x < w && count === 0; x++) {
+      for (const y of [0, h - 1]) {
+        const i = (y * w + x) * 4;
+        if (isOpaqueEnough(i)) { sr = d[i]; sg = d[i + 1]; sb = d[i + 2]; count = 1; break outer; }
+      }
+    }
+  }
+  if (count === 0) {
+    outer2: for (let y = 0; y < h && count === 0; y++) {
+      for (const x of [0, w - 1]) {
+        const i = (y * w + x) * 4;
+        if (isOpaqueEnough(i)) { sr = d[i]; sg = d[i + 1]; sb = d[i + 2]; count = 1; break outer2; }
+      }
+    }
+  }
+  if (count > 0) colors.push([sr / count, sg / count, sb / count]);
+
+  const haveBgColor = colors.length > 0;
+  const minColorDist = i => {
+    let best = Infinity;
+    for (const c of colors) {
+      const dr = d[i] - c[0], dg = d[i + 1] - c[1], db = d[i + 2] - c[2];
+      const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+      if (dist < best) best = dist;
+    }
+    return best;
+  };
+  // 이미 투명한 픽셀은 색과 상관없이 배경으로 취급하고, 그 외에는 후보 배경색들과의 최소 거리로 판단한다.
+  const isBackgroundLike = i => !isOpaqueEnough(i) || (haveBgColor && minColorDist(i) < threshold);
+
+  const visited = new Uint8Array(w * h);
+  const depth = new Uint16Array(w * h);
+  const queue = [];
+  const tryPush = (x, y, dep) => {
+    if (x < 0 || x >= w || y < 0 || y >= h || dep > maxDepth) return;
+    const idx = y * w + x;
+    if (visited[idx]) return;
+    if (!isBackgroundLike(idx * 4)) return;
+    visited[idx] = 1;
+    depth[idx] = dep;
+    queue.push(idx);
+  };
+  for (let x = 0; x < w; x++) { tryPush(x, 0, 0); tryPush(x, h - 1, 0); }
+  for (let y = 0; y < h; y++) { tryPush(0, y, 0); tryPush(w - 1, y, 0); }
+
+  let head = 0;
+  while (head < queue.length) {
+    const idx = queue[head++];
+    const x = idx % w, y = (idx / w) | 0;
+    const nd = depth[idx] + 1;
+    tryPush(x + 1, y, nd); tryPush(x - 1, y, nd);
+    tryPush(x, y + 1, nd); tryPush(x, y - 1, nd);
+  }
+
+  // 복구 지점: "지워질 예정"이던(visited) 영역 안에서만 flood-fill로 번져서 복구 대상을 표시한다.
+  // visited가 아닌 픽셀(진짜 다른 색 테두리나 depth 한계에 막힌 곳)에는 절대 번지지 않는다.
+  const restored = new Uint8Array(w * h);
+  const restoreQueue = [];
+  for (const p of restorePoints) {
+    const x = Math.max(0, Math.min(w - 1, p.x));
+    const y = Math.max(0, Math.min(h - 1, p.y));
+    const idx = y * w + x;
+    if (visited[idx] && !restored[idx]) {
+      restored[idx] = 1;
+      restoreQueue.push(idx);
+    }
+  }
+  let rHead = 0;
+  while (rHead < restoreQueue.length) {
+    const idx = restoreQueue[rHead++];
+    const x = idx % w, y = (idx / w) | 0;
+    const neighbors = [
+      x > 0 ? idx - 1 : -1, x < w - 1 ? idx + 1 : -1,
+      y > 0 ? idx - w : -1, y < h - 1 ? idx + w : -1,
+    ];
+    for (const nIdx of neighbors) {
+      if (nIdx < 0 || restored[nIdx] || !visited[nIdx]) continue;
+      restored[nIdx] = 1;
+      restoreQueue.push(nIdx);
+    }
+  }
+
+  for (let idx = 0; idx < w * h; idx++) {
+    if (!visited[idx] || restored[idx]) continue;
+    d[idx * 4 + 3] = 0;
+  }
+  // 경계 부드럽게: 지워진 픽셀에 바로 인접했고 배경색에 가까운(하지만 완전히 지워지진 않은) 픽셀은 부분 투명 처리
+  if (haveBgColor) {
+    for (let idx = 0; idx < w * h; idx++) {
+      if (visited[idx]) continue;
+      const i = idx * 4;
+      if (!isOpaqueEnough(i)) continue;
+      const dist = minColorDist(i);
+      if (dist < threshold || dist >= threshold * 1.8) continue;
+      const x = idx % w, y = (idx / w) | 0;
+      const trulyRemoved = j => visited[j] && !restored[j];
+      const nearRemoved =
+        (x > 0 && trulyRemoved(idx - 1)) || (x < w - 1 && trulyRemoved(idx + 1)) ||
+        (y > 0 && trulyRemoved(idx - w)) || (y < h - 1 && trulyRemoved(idx + w));
+      if (nearRemoved) {
+        const t = (dist - threshold) / (threshold * 0.8);
+        d[i + 3] = Math.round(d[i + 3] * Math.min(1, t));
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  return canvas;
+}
+
+// removeSolidBackground의 "배경 판정" 부분만 재사용해서, 특정 지점이 배경으로 지워질지와
+// 그 판정에 쓰인 visited 맵을 돌려준다 (우클릭으로 복구 지점을 되돌릴 때 사용).
+function computeVisitedMask(source, threshold, maxDepth, extraColors) {
+  const w = source.width, h = source.height;
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(source, 0, 0);
+  const d = ctx.getImageData(0, 0, w, h).data;
+  const isOpaqueEnough = i => d[i + 3] >= 10;
+
+  const colors = [...extraColors];
+  const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+  let sr = 0, sg = 0, sb = 0, count = 0;
+  corners.forEach(([x, y]) => {
+    const i = (y * w + x) * 4;
+    if (isOpaqueEnough(i)) { sr += d[i]; sg += d[i + 1]; sb += d[i + 2]; count++; }
+  });
+  if (count === 0) {
+    outer: for (let x = 0; x < w && count === 0; x++) {
+      for (const y of [0, h - 1]) {
+        const i = (y * w + x) * 4;
+        if (isOpaqueEnough(i)) { sr = d[i]; sg = d[i + 1]; sb = d[i + 2]; count = 1; break outer; }
+      }
+    }
+  }
+  if (count === 0) {
+    outer2: for (let y = 0; y < h && count === 0; y++) {
+      for (const x of [0, w - 1]) {
+        const i = (y * w + x) * 4;
+        if (isOpaqueEnough(i)) { sr = d[i]; sg = d[i + 1]; sb = d[i + 2]; count = 1; break outer2; }
+      }
+    }
+  }
+  if (count > 0) colors.push([sr / count, sg / count, sb / count]);
+
+  const haveBgColor = colors.length > 0;
+  const minColorDist = i => {
+    let best = Infinity;
+    for (const c2 of colors) {
+      const dr = d[i] - c2[0], dg = d[i + 1] - c2[1], db = d[i + 2] - c2[2];
+      const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+      if (dist < best) best = dist;
+    }
+    return best;
+  };
+  const isBackgroundLike = i => !isOpaqueEnough(i) || (haveBgColor && minColorDist(i) < threshold);
+
+  const visited = new Uint8Array(w * h);
+  const depth = new Uint16Array(w * h);
+  const queue = [];
+  const tryPush = (x, y, dep) => {
+    if (x < 0 || x >= w || y < 0 || y >= h || dep > maxDepth) return;
+    const idx = y * w + x;
+    if (visited[idx]) return;
+    if (!isBackgroundLike(idx * 4)) return;
+    visited[idx] = 1;
+    depth[idx] = dep;
+    queue.push(idx);
+  };
+  for (let x = 0; x < w; x++) { tryPush(x, 0, 0); tryPush(x, h - 1, 0); }
+  for (let y = 0; y < h; y++) { tryPush(0, y, 0); tryPush(w - 1, y, 0); }
+  let head = 0;
+  while (head < queue.length) {
+    const idx = queue[head++];
+    const x = idx % w, y = (idx / w) | 0;
+    const nd = depth[idx] + 1;
+    tryPush(x + 1, y, nd); tryPush(x - 1, y, nd);
+    tryPush(x, y + 1, nd); tryPush(x, y - 1, nd);
+  }
+  return { visited, w, h };
+}
+
+// 우클릭 지점이 기존 좌클릭 복구 지점 때문에 보호받고 있었다면, 그 복구 지점을 지워서
+// (색 연결이 닿는 범위까지만) 다시 지워지게 한다 - "우클릭 다시 누르면 다시 삭제".
+function pruneRestorePointsCovering(source, threshold, maxDepth, colors, targetX, targetY) {
+  if (motionRestorePoints.length === 0) return;
+  const { visited, w, h } = computeVisitedMask(source, threshold, maxDepth, colors);
+  const tx = Math.max(0, Math.min(w - 1, targetX));
+  const ty = Math.max(0, Math.min(h - 1, targetY));
+  const targetIdx = ty * w + tx;
+  if (!visited[targetIdx]) return;
+
+  motionRestorePoints = motionRestorePoints.filter(p => {
+    const x = Math.max(0, Math.min(w - 1, p.x));
+    const y = Math.max(0, Math.min(h - 1, p.y));
+    const startIdx = y * w + x;
+    if (!visited[startIdx]) return true;
+    if (startIdx === targetIdx) return false;
+    const seen = new Uint8Array(w * h);
+    seen[startIdx] = 1;
+    const q = [startIdx];
+    let head = 0;
+    let reached = false;
+    while (head < q.length && !reached) {
+      const idx = q[head++];
+      const x2 = idx % w, y2 = (idx / w) | 0;
+      const neighbors = [x2 > 0 ? idx - 1 : -1, x2 < w - 1 ? idx + 1 : -1, y2 > 0 ? idx - w : -1, y2 < h - 1 ? idx + w : -1];
+      for (const n of neighbors) {
+        if (n < 0 || seen[n] || !visited[n]) continue;
+        if (n === targetIdx) { reached = true; break; }
+        seen[n] = 1;
+        q.push(n);
+      }
+    }
+    return !reached;
+  });
+}
+
+function renderMotionCropUI() {
+  motionCropMount.innerHTML = "";
+  motionCropBtn.textContent = cropActiveKey === "motion" ? "닫기" : "크롭";
+  motionCropStatus.textContent = motionCropRect ? "✂ 크롭됨" : "";
+  if (cropActiveKey === "motion") {
+    motionCropMount.appendChild(buildCropPanel());
+    wireCropPanel();
+    drawCropCanvas();
+  }
+}
+
+motionCropBtn.addEventListener("click", () => {
+  if (!motionOriginalFile) return;
+  openCropSession("motion", motionOriginalFile, motionCropRect, {
+    onApply: rect => { motionCropRect = rect; motionRestorePoints = []; recomputeMotionSource(); },
+    onReset: () => { motionCropRect = null; motionRestorePoints = []; recomputeMotionSource(); },
+    rerender: renderMotionCropUI,
+  });
+});
+
+motionBgToggleBtn.addEventListener("click", () => {
+  motionBgRemoved = !motionBgRemoved;
+  updateBgToggleUI();
+  renderBgColorList();
+  recomputeMotionSource();
+});
+
+
+function pickCanvasColor(e) {
+  const rect = motionPreviewCanvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const scaleX = motionPreviewCanvas.width / rect.width;
+  const scaleY = motionPreviewCanvas.height / rect.height;
+  const x = Math.min(motionPreviewCanvas.width - 1, Math.max(0, Math.floor((e.clientX - rect.left) * scaleX)));
+  const y = Math.min(motionPreviewCanvas.height - 1, Math.max(0, Math.floor((e.clientY - rect.top) * scaleY)));
+  const ctx = motionPreviewCanvas.getContext("2d");
+  const px = ctx.getImageData(x, y, 1, 1).data;
+  return [px[0], px[1], px[2]];
+}
+
+let motionPicking = false;
+motionBgPickBtn.addEventListener("click", () => {
+  motionPicking = true;
+  motionBgPickBtn.textContent = "미리보기를 클릭하세요...";
+  motionPreviewCanvas.style.cursor = "crosshair";
+});
+motionPreviewCanvas.addEventListener("click", e => {
+  if (motionPicking) {
+    const color = pickCanvasColor(e);
+    motionPicking = false;
+    motionBgPickBtn.textContent = "스포이드로 색 추가";
+    motionPreviewCanvas.style.cursor = "";
+    if (color) addBgColor(color);
+    return;
+  }
+  // 스포이드 모드가 아닐 때 좌클릭하면, 그 자리가 지워진 상태라면 복구한다
+  // (단, 다른 색 테두리나 배경 제거 범위 한계에 막힌 영역까지만 - 그 안쪽 전체가 함께 복구됨).
+  if (!motionBgRemoved || !motionSourceBitmap) return;
+  const rect = motionPreviewCanvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const scaleX = motionPreviewCanvas.width / rect.width;
+  const scaleY = motionPreviewCanvas.height / rect.height;
+  const px = (e.clientX - rect.left) * scaleX;
+  const py = (e.clientY - rect.top) * scaleY;
+  const pt = previewPointToSource(px, py);
+  motionRestorePoints.push(pt);
+  recomputeMotionSource();
+});
+// 우클릭하면 스포이드 버튼 없이도 바로 그 자리의 색을 배경색 목록에 추가한다.
+// 만약 그 자리가 좌클릭으로 복구해둔 곳이었다면, 그 복구를 취소해서 다시 지워지게 한다.
+motionPreviewCanvas.addEventListener("contextmenu", e => {
+  e.preventDefault();
+  if (!motionSourceBitmap) return;
+  const color = pickCanvasColor(e);
+  if (!color) return;
+  if (motionBgRemoved && motionRestorePoints.length > 0) {
+    const rect = motionPreviewCanvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const scaleX = motionPreviewCanvas.width / rect.width;
+      const scaleY = motionPreviewCanvas.height / rect.height;
+      const px = (e.clientX - rect.left) * scaleX;
+      const py = (e.clientY - rect.top) * scaleY;
+      const pt = previewPointToSource(px, py);
+      const cropSourceCanvas = motionCropRect
+        ? cropSource(motionOriginalBitmap, motionCropRect)
+        : drawToCanvas(motionOriginalBitmap, motionOriginalBitmap.width, motionOriginalBitmap.height);
+      const threshold = parseInt(motionBgThresholdRange.value, 10);
+      pruneRestorePointsCovering(cropSourceCanvas, threshold, BG_REMOVE_MAX_DEPTH, [...motionBgColors, color], pt.x, pt.y);
+    }
+  }
+  addBgColor(color);
+});
+motionBgAutoBtn.addEventListener("click", () => {
+  motionBgColors = [];
+  motionRestorePoints = [];
+  renderBgColorList();
+  if (motionBgRemoved) recomputeMotionSource();
+});
+
+function updateBgOptionLabels() {
+  motionBgThresholdLabel.textContent = motionBgThresholdRange.value;
+}
+motionBgThresholdRange.addEventListener("input", () => {
+  updateBgOptionLabels();
+  if (motionBgRemoved) recomputeMotionSource();
+});
+updateBgOptionLabels();
+
+function motionLoopDurationMs() {
+  // 속도 슬라이더 1~100 -> 루프 한 바퀴 2000ms(느림) ~ 300ms(빠름)
+  const v = parseInt(motionSpeedRange.value, 10);
+  return Math.round(2000 - (v - 1) * (1700 / 99));
+}
+function motionIntensityRatio() {
+  return parseInt(motionIntensityRange.value, 10) / 100;
+}
+function updateMotionLabels() {
+  motionSpeedLabel.textContent = (motionLoopDurationMs() / 1000).toFixed(2) + "초/루프";
+  motionIntensityLabel.textContent = motionIntensityRange.value;
+}
+motionSpeedRange.addEventListener("input", updateMotionLabels);
+motionIntensityRange.addEventListener("input", () => {
+  updateMotionLabels();
+  if (motionTypeSel.value === "monitoring") recomputeMotionSource();
+});
+motionTypeSel.addEventListener("change", () => {
+  const def = MOTION_DEFAULT_INTENSITY[motionTypeSel.value];
+  if (def !== undefined) {
+    motionIntensityRange.value = def;
+    updateMotionLabels();
+  }
+  monitoringHint.style.display = motionTypeSel.value === "monitoring" ? "block" : "none";
+  motionPreviewStart = performance.now();
+  recomputeMotionSource();
+});
+updateMotionLabels();
+
+function computeMotionTransform(type, t, intensity, w, h) {
+  const twoPi = Math.PI * 2;
+  switch (type) {
+    case "bounce": {
+      const amp = h * 0.3 * intensity;
+      return { dx: 0, dy: -amp * Math.abs(Math.sin(twoPi * t)), rotateDeg: 0, scale: 1 };
+    }
+    case "rock": {
+      const deg = 20 * intensity;
+      return { dx: 0, dy: 0, rotateDeg: deg * Math.sin(twoPi * t), scale: 1 };
+    }
+    case "jitter": {
+      const amp = w * 0.05 * intensity;
+      const dx = amp * (Math.sin(twoPi * t * 9) * 0.6 + Math.sin(twoPi * t * 13 + 1) * 0.4);
+      const dy = amp * (Math.sin(twoPi * t * 11 + 2) * 0.6 + Math.sin(twoPi * t * 7 + 0.5) * 0.4);
+      return { dx, dy, rotateDeg: 0, scale: 1 };
+    }
+    case "slide": {
+      const amp = w * 0.25 * intensity;
+      return { dx: amp * Math.sin(twoPi * t * 2), dy: 0, rotateDeg: 0, scale: 1 };
+    }
+    case "pulse": {
+      const amp = 0.28 * intensity;
+      return { dx: 0, dy: 0, rotateDeg: 0, scale: 1 + amp * (1 - Math.cos(twoPi * t)) / 2 };
+    }
+    case "spin": {
+      const spins = 1 + Math.round(2 * intensity);
+      return { dx: 0, dy: 0, rotateDeg: 360 * spins * t, scale: 1 };
+    }
+    case "dizzy": {
+      const amp = Math.min(w, h) * 0.12 * intensity;
+      const deg = 12 * intensity;
+      const dx = amp * Math.cos(twoPi * t * 2);
+      const dy = amp * Math.sin(twoPi * t * 2) * 0.6;
+      const s = 1 + 0.08 * intensity * Math.sin(twoPi * t * 2 + 1);
+      return { dx, dy, rotateDeg: deg * Math.sin(twoPi * t * 2 + 0.5), scale: s };
+    }
+    default:
+      return { dx: 0, dy: 0, rotateDeg: 0, scale: 1 };
+  }
+}
+
+function motionCanvasPadding(type) {
+  switch (type) {
+    case "bounce": return { padX: 0.1, padY: 0.35 };
+    case "rock": return { padX: 0.3, padY: 0.3 };
+    case "jitter": return { padX: 0.15, padY: 0.15 };
+    case "slide": return { padX: 0.3, padY: 0.05 };
+    case "pulse": return { padX: 0.35, padY: 0.35 };
+    case "spin": return { padX: 0.42, padY: 0.42 };
+    case "dizzy": return { padX: 0.3, padY: 0.3 };
+    case "monitoring": return { padX: 0, padY: 0 };
+    default: return { padX: 0.1, padY: 0.1 };
+  }
+}
+
+function drawMotionFrame(ctx, canvasW, canvasH, source, srcW, srcH, transform) {
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  ctx.save();
+  ctx.translate(canvasW / 2 + transform.dx, canvasH / 2 + transform.dy);
+  ctx.rotate((transform.rotateDeg * Math.PI) / 180);
+  ctx.scale(transform.scale, transform.scale);
+  ctx.drawImage(source, -srcW / 2, -srcH / 2, srcW, srcH);
+  ctx.restore();
+}
+
+function motionCanvasSize() {
+  const type = motionTypeSel.value;
+  const srcW = motionSourceBitmap.width, srcH = motionSourceBitmap.height;
+  const pad = motionCanvasPadding(type);
+  return {
+    w: Math.round(srcW * (1 + pad.padX * 2)),
+    h: Math.round(srcH * (1 + pad.padY * 2)),
+  };
+}
+
+// 미리보기 캔버스 클릭 좌표를 원본(회전/이동 전) 이미지 좌표로 되돌리기 위해 마지막 프레임의 변환 정보를 저장해둔다.
+let lastFrameTransform = { dx: 0, dy: 0, rotateDeg: 0, scale: 1 };
+let lastFrameCanvasSize = { w: 0, h: 0 };
+let lastFrameSrcSize = { w: 0, h: 0 };
+
+function previewPointToSource(px, py) {
+  const { dx, dy, rotateDeg, scale } = lastFrameTransform;
+  const canvasW = lastFrameCanvasSize.w, canvasH = lastFrameCanvasSize.h;
+  const srcW = lastFrameSrcSize.w, srcH = lastFrameSrcSize.h;
+  const rad = (rotateDeg * Math.PI) / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  const ux = (px - (canvasW / 2 + dx)) / scale;
+  const uy = (py - (canvasH / 2 + dy)) / scale;
+  const sx = ux * cos + uy * sin;
+  const sy = -ux * sin + uy * cos;
+  return { x: Math.round(sx + srcW / 2), y: Math.round(sy + srcH / 2) };
+}
+
+function startMotionPreview() {
+  cancelAnimationFrame(motionPreviewRAF);
+  motionPreviewStart = performance.now();
+  const ctx = motionPreviewCanvas.getContext("2d");
+
+  function frame(now) {
+    if (!motionSourceBitmap) return;
+    const type = motionTypeSel.value;
+    const intensity = motionIntensityRatio();
+    const durationMs = motionLoopDurationMs();
+    const srcW = motionSourceBitmap.width, srcH = motionSourceBitmap.height;
+    const { w: canvasW, h: canvasH } = motionCanvasSize();
+    if (motionPreviewCanvas.width !== canvasW || motionPreviewCanvas.height !== canvasH) {
+      motionPreviewCanvas.width = canvasW;
+      motionPreviewCanvas.height = canvasH;
+    }
+    const t = ((now - motionPreviewStart) % durationMs) / durationMs;
+    const transform = computeMotionTransform(type, t, intensity, srcW, srcH);
+    drawMotionFrame(ctx, canvasW, canvasH, motionSourceBitmap, srcW, srcH, transform);
+    lastFrameTransform = transform;
+    lastFrameCanvasSize = { w: canvasW, h: canvasH };
+    lastFrameSrcSize = { w: srcW, h: srcH };
+    motionPreviewRAF = requestAnimationFrame(frame);
+  }
+  motionPreviewRAF = requestAnimationFrame(frame);
+}
+
+async function buildMotionFrames() {
+  const type = motionTypeSel.value;
+  const intensity = motionIntensityRatio();
+  const durationMs = motionLoopDurationMs();
+  const srcW = motionSourceBitmap.width, srcH = motionSourceBitmap.height;
+  const { w: canvasW, h: canvasH } = motionCanvasSize();
+  const frameCount = 20;
+  const delay = Math.max(20, Math.round(durationMs / frameCount));
+  const frames = [];
+  for (let i = 0; i < frameCount; i++) {
+    const t = i / frameCount;
+    const transform = computeMotionTransform(type, t, intensity, srcW, srcH);
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    drawMotionFrame(canvas.getContext("2d"), canvasW, canvasH, motionSourceBitmap, srcW, srcH, transform);
+    frames.push({ canvas, delay });
+  }
+  return { width: canvasW, height: canvasH, frames };
+}
+
+async function exportMotion(mode) {
+  if (STATIC_MOTION_TYPES.includes(motionTypeSel.value)) {
+    await exportStaticImage(mode);
+  } else {
+    await exportMotionGif(mode);
+  }
+}
+
+// "움직임 없음"/"모니터링"은 애니메이션이 없으므로 GIF 대신 PNG 이미지 파일로 저장한다.
+async function exportStaticImage(mode) {
+  motionSaveOriginalBtn.disabled = true;
+  motionSave30Btn.disabled = true;
+  motionSave500Btn.disabled = true;
+  motionStatusEl.textContent = "이미지 생성 중...";
+  try {
+    let canvas = drawToCanvas(motionSourceBitmap, motionSourceBitmap.width, motionSourceBitmap.height);
+    let width = canvas.width, height = canvas.height;
+
+    if (mode === "30px") {
+      canvas = drawToCanvas(canvas, TARGET_SIZE, TARGET_SIZE);
+      width = TARGET_SIZE;
+      height = TARGET_SIZE;
+    }
+
+    let blob = await canvasToBlob(canvas, "image/png");
+    if (mode === "500kb" && blob.size > MAX_BYTES) {
+      for (const [w, h] of downscaleSteps(width, height)) {
+        const resized = drawToCanvas(canvas, w, h);
+        blob = await canvasToBlob(resized, "image/png");
+        width = w;
+        height = h;
+        if (blob.size <= MAX_BYTES) break;
+      }
+    }
+
+    const suffixMap = {
+      original: `${motionTypeSel.value}`,
+      "30px": `${motionTypeSel.value}_30x30`,
+      "500kb": `${motionTypeSel.value}_500kb`,
+    };
+    addResult({ name: motionSourceName }, { blob, width, height, ext: "png", suffix: suffixMap[mode] });
+    motionStatusEl.textContent = `완료: ${(blob.size / 1024).toFixed(1)} KB`;
+  } catch (e) {
+    console.error(e);
+    motionStatusEl.textContent = "오류: " + e.message;
+  }
+  motionSaveOriginalBtn.disabled = false;
+  motionSave30Btn.disabled = false;
+  motionSave500Btn.disabled = false;
+}
+
+async function exportMotionGif(mode) {
+  // mode: "original" | "30px" | "500kb"
+  motionSaveOriginalBtn.disabled = true;
+  motionSave30Btn.disabled = true;
+  motionSave500Btn.disabled = true;
+  motionStatusEl.textContent = "GIF 생성 중...";
+  try {
+    let { width, height, frames } = await buildMotionFrames();
+
+    if (mode === "30px") {
+      frames = cloneFrames(frames, TARGET_SIZE, TARGET_SIZE);
+      width = TARGET_SIZE;
+      height = TARGET_SIZE;
+    }
+
+    const hasAlpha = frames.some(f => frameHasAlpha(f.canvas));
+    const transparentColor = hasAlpha ? pickTransparentColor(frames) : null;
+
+    let prepped = prepFramesForEncode(frames, transparentColor);
+    let blob = await encodeGif(prepped, width, height, transparentColor);
+
+    if (mode === "500kb" && blob.size > MAX_BYTES) {
+      let curFrames = frames;
+      let fitted = false;
+      for (const [w, h] of downscaleSteps(width, height)) {
+        curFrames = frames.map(f => ({ canvas: drawToCanvas(f.canvas, w, h), delay: f.delay }));
+        prepped = prepFramesForEncode(curFrames, transparentColor);
+        blob = await encodeGif(prepped, w, h, transparentColor);
+        if (blob.size <= MAX_BYTES) { width = w; height = h; fitted = true; break; }
+      }
+      if (!fitted) {
+        let frameSet = curFrames;
+        while (frameSet.length > 4 && blob.size > MAX_BYTES) {
+          frameSet = frameSet.filter((_, i) => i % 2 === 0);
+          prepped = prepFramesForEncode(frameSet, transparentColor);
+          blob = await encodeGif(prepped, width, height, transparentColor);
+        }
+      }
+    }
+
+    const suffixMap = {
+      original: `${motionTypeSel.value}_motion`,
+      "30px": `${motionTypeSel.value}_motion_30x30`,
+      "500kb": `${motionTypeSel.value}_motion_500kb`,
+    };
+    addResult({ name: motionSourceName }, { blob, width, height, ext: "gif", suffix: suffixMap[mode] });
+    motionStatusEl.textContent = `완료: ${(blob.size / 1024).toFixed(1)} KB`;
+  } catch (e) {
+    console.error(e);
+    motionStatusEl.textContent = "오류: " + e.message;
+  }
+  motionSaveOriginalBtn.disabled = false;
+  motionSave30Btn.disabled = false;
+  motionSave500Btn.disabled = false;
+}
+
+motionSaveOriginalBtn.addEventListener("click", () => exportMotion("original"));
+motionSave30Btn.addEventListener("click", () => exportMotion("30px"));
+motionSave500Btn.addEventListener("click", () => exportMotion("500kb"));
+
+// ---------- 카드 창 버튼 (최소화/최대화/닫기) ----------
+function resetCardData(type) {
+  switch (type) {
+    case "files":
+      selectedFiles.forEach(item => {
+        URL.revokeObjectURL(item.previewUrl);
+        if (item.previewCroppedUrl) URL.revokeObjectURL(item.previewCroppedUrl);
+      });
+      selectedFiles = [];
+      if (cropActiveKey && cropActiveKey.startsWith("file:")) closeCropPanel();
+      renderFileList();
+      setStatus("");
+      break;
+    case "motion":
+      if (motionOriginalBitmap && motionOriginalBitmap.close) motionOriginalBitmap.close();
+      motionOriginalBitmap = null;
+      motionOriginalFile = null;
+      motionSourceBitmap = null;
+      motionCropRect = null;
+      motionBgRemoved = false;
+      updateBgToggleUI();
+      motionBgColors = [];
+      motionRestorePoints = [];
+      renderBgColorList();
+      if (cropActiveKey === "motion") closeCropPanel();
+      cancelAnimationFrame(motionPreviewRAF);
+      motionEditor.style.display = "none";
+      motionStatusEl.textContent = "";
+      motionFileInput.value = "";
+      break;
+    case "results":
+      resultsEl.innerHTML = "";
+      resultsCard.style.display = "none";
+      break;
+  }
+}
+
+function initWinButtons() {
+  document.querySelectorAll(".win-min").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const box = btn.closest(".card");
+      if (box) box.classList.toggle("win-collapsed");
+    });
+  });
+  document.querySelectorAll(".win-max").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const box = btn.closest(".card");
+      if (box) box.classList.remove("win-collapsed");
+    });
+  });
+  document.querySelectorAll(".win-close").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const box = btn.closest(".card");
+      const type = box && box.dataset.reset;
+      if (!type) return;
+      if (!confirm("정말 이 섹션의 내용을 모두 지우시겠습니까?\n되돌릴 수 없습니다.")) return;
+      resetCardData(type);
+    });
+  });
+}
+initWinButtons();
+
+// ---------- 장식 이미지 클릭 시 하트 파티클 ----------
+function heartSVG(color) {
+  return "data:image/svg+xml," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 90">' +
+    '<path d="M50 82 C50 82 8 54 8 28 C8 14 18 5 30 5 C38 5 45 10 50 17 C55 10 62 5 70 5 C82 5 92 14 92 28 C92 54 50 82 50 82Z" fill="' + color + '"/>' +
+    "</svg>"
+  );
+}
+function spawnHeart(originEl) {
+  const r = originEl.getBoundingClientRect();
+  const img = document.createElement("img");
+  img.src = heartSVG("#fe7c96");
+  const startX = r.left + r.width * Math.random();
+  const startY = r.top + r.height * 0.5 * Math.random();
+  const size = 14 + Math.random() * 12;
+  const dx = (Math.random() - 0.5) * 40;
+  const dy = -(30 + Math.random() * 40);
+  img.style.cssText = [
+    "position:fixed", "z-index:1000", "pointer-events:none",
+    "width:" + size + "px", "height:" + size * 0.9 + "px",
+    "left:" + startX + "px", "top:" + startY + "px",
+    "opacity:1", "transform:translate(-50%,-50%)",
+    "transition:transform 1s ease-out, opacity 1s ease-out",
+    "will-change:transform,opacity",
+  ].join(";");
+  document.body.appendChild(img);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    img.style.transform = "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px)) scale(.6)";
+    img.style.opacity = "0";
+  }));
+  setTimeout(() => img.remove(), 1050);
+}
+const decorationClickSound = new Audio("click.mp3");
+document.getElementById("decorationImg").addEventListener("click", e => {
+  const target = e.currentTarget;
+  decorationClickSound.currentTime = 0;
+  decorationClickSound.play().catch(() => {});
+  for (let i = 0; i < 8; i++) {
+    setTimeout(() => spawnHeart(target), i * 60);
+  }
 });
 </script>
 </body>
