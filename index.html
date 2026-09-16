@@ -211,6 +211,13 @@
       <button class="secondary" id="btnCompress">500KB 이하로 압축 (고화질 우선)</button>
     </div>
     <div id="status"></div>
+    <div id="fileResultsWrap" style="display:none;">
+      <div class="card-title" style="margin-top:14px;">
+        <span class="card-title-text">결과</span>
+        <button class="ghost" id="btnClearFileResults">결과 지우기</button>
+      </div>
+      <div id="fileResults"></div>
+    </div>
   </div>
 
   <div class="card" data-reset="motion">
@@ -280,16 +287,14 @@
         <button class="secondary" id="motionSave500">500KB 이하로 저장</button>
       </div>
       <div id="motionStatus"></div>
+      <div id="motionResultsWrap" style="display:none;">
+        <div class="card-title" style="margin-top:14px;">
+          <span class="card-title-text">결과</span>
+          <button class="ghost" id="btnClearMotionResults">결과 지우기</button>
+        </div>
+        <div id="motionResults"></div>
+      </div>
     </div>
-  </div>
-
-  <div class="card" id="resultsCard" data-reset="results" style="display:none;">
-    <div class="card-title">
-      <span class="card-title-text">결과</span>
-      <button class="ghost" id="btnClearResults">결과 지우기</button>
-      <span class="win-btns"><button type="button" class="win-btn win-min" title="최소화">━</button><button type="button" class="win-btn win-max" title="최대화"></button><button type="button" class="win-btn win-close" title="닫기">✕</button></span>
-    </div>
-    <div id="results"></div>
   </div>
 
   <div class="decoration-wrap">
@@ -310,8 +315,10 @@ const fileInput = document.getElementById("fileInput");
 const dropzone = document.getElementById("dropzone");
 const fileListEl = document.getElementById("fileList");
 const statusEl = document.getElementById("status");
-const resultsCard = document.getElementById("resultsCard");
-const resultsEl = document.getElementById("results");
+const fileResultsWrap = document.getElementById("fileResultsWrap");
+const fileResultsEl = document.getElementById("fileResults");
+const motionResultsWrap = document.getElementById("motionResultsWrap");
+const motionResultsEl = document.getElementById("motionResults");
 
 dropzone.addEventListener("click", () => fileInput.click());
 ["dragenter", "dragover"].forEach(evt =>
@@ -717,15 +724,13 @@ function baseName(name) {
   return idx === -1 ? name : name.slice(0, idx);
 }
 
-function addResult(file, outcome, error) {
-  resultsCard.style.display = "block";
+function buildResultItem(file, outcome, error) {
   const item = document.createElement("div");
   item.className = "result-item";
 
   if (error) {
     item.innerHTML = `<div class="result-info"><div class="name">${file.name}</div><div class="meta warn">실패: ${error.message}</div></div>`;
-    resultsEl.appendChild(item);
-    return;
+    return item;
   }
 
   const { blob, width, height, ext, suffix } = outcome;
@@ -765,7 +770,17 @@ function addResult(file, outcome, error) {
   item.appendChild(img);
   item.appendChild(info);
   item.appendChild(link);
-  resultsEl.appendChild(item);
+  return item;
+}
+
+function addFileResult(file, outcome, error) {
+  fileResultsWrap.style.display = "block";
+  fileResultsEl.appendChild(buildResultItem(file, outcome, error));
+}
+
+function addMotionResult(file, outcome, error) {
+  motionResultsWrap.style.display = "block";
+  motionResultsEl.appendChild(buildResultItem(file, outcome, error));
 }
 
 async function runConvert(resize) {
@@ -780,11 +795,11 @@ async function runConvert(resize) {
     setStatus(`처리 중... (${done + failed + 1}/${selectedFiles.length}) ${item.file.name}`);
     try {
       const outcome = await processFile(item.file, resize, item.cropRect);
-      addResult(item.file, outcome);
+      addFileResult(item.file, outcome);
       done++;
     } catch (e) {
       console.error(e);
-      addResult(item.file, null, e);
+      addFileResult(item.file, null, e);
       failed++;
     }
   }
@@ -797,7 +812,14 @@ const btnResize = document.getElementById("btnResize");
 const btnCompress = document.getElementById("btnCompress");
 btnResize.addEventListener("click", () => runConvert(true));
 btnCompress.addEventListener("click", () => runConvert(false));
-document.getElementById("btnClearResults").addEventListener("click", () => resetCardData("results"));
+document.getElementById("btnClearFileResults").addEventListener("click", () => {
+  fileResultsEl.innerHTML = "";
+  fileResultsWrap.style.display = "none";
+});
+document.getElementById("btnClearMotionResults").addEventListener("click", () => {
+  motionResultsEl.innerHTML = "";
+  motionResultsWrap.style.display = "none";
+});
 
 // ---------- 정사각형 크롭 도구 (파일 목록/움직이는 GIF 도구 양쪽에서 공용으로 사용) ----------
 let cropActiveKey = null; // 예: "file:2" 또는 "motion"
@@ -1777,7 +1799,7 @@ async function exportStaticImage(mode) {
       "30px": `${motionTypeSel.value}_30x30`,
       "500kb": `${motionTypeSel.value}_500kb`,
     };
-    addResult({ name: motionSourceName }, { blob, width, height, ext: "png", suffix: suffixMap[mode] });
+    addMotionResult({ name: motionSourceName }, { blob, width, height, ext: "png", suffix: suffixMap[mode] });
     motionStatusEl.textContent = `완료: ${(blob.size / 1024).toFixed(1)} KB`;
   } catch (e) {
     console.error(e);
@@ -1833,7 +1855,7 @@ async function exportMotionGif(mode) {
       "30px": `${motionTypeSel.value}_motion_30x30`,
       "500kb": `${motionTypeSel.value}_motion_500kb`,
     };
-    addResult({ name: motionSourceName }, { blob, width, height, ext: "gif", suffix: suffixMap[mode] });
+    addMotionResult({ name: motionSourceName }, { blob, width, height, ext: "gif", suffix: suffixMap[mode] });
     motionStatusEl.textContent = `완료: ${(blob.size / 1024).toFixed(1)} KB`;
   } catch (e) {
     console.error(e);
@@ -1860,6 +1882,8 @@ function resetCardData(type) {
       if (cropActiveKey && cropActiveKey.startsWith("file:")) closeCropPanel();
       renderFileList();
       setStatus("");
+      fileResultsEl.innerHTML = "";
+      fileResultsWrap.style.display = "none";
       break;
     case "motion":
       if (motionOriginalBitmap && motionOriginalBitmap.close) motionOriginalBitmap.close();
@@ -1877,10 +1901,8 @@ function resetCardData(type) {
       motionEditor.style.display = "none";
       motionStatusEl.textContent = "";
       motionFileInput.value = "";
-      break;
-    case "results":
-      resultsEl.innerHTML = "";
-      resultsCard.style.display = "none";
+      motionResultsEl.innerHTML = "";
+      motionResultsWrap.style.display = "none";
       break;
   }
 }
