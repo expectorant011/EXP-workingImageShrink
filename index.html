@@ -1185,30 +1185,32 @@ function recomputeMotionSource() {
 }
 
 // 볼록렌즈(어안) + 원형 비네팅 필터 - CCTV/피시아이 렌즈로 본 것 같은 효과.
-// 정사각형 캔버스를 기준으로, 중심에서 가까운 부분은 늘리고(부풀림) 바깥은 압축한 뒤,
-// 안에 꽉 차는 원 밖은 전부 검게 칠한다.
+// 원본이 정사각형이 아니면(사진 등) 원이 꽉 차는 한 변 길이로 정사각형으로 잘라서 출력한다
+// (그렇지 않으면 남는 변에 검은 여백이 생기고, 미리보기 틀의 체크무늬 배경과 겹쳐 마치
+// 배경이 투명한 것처럼 보이는 문제가 있었음).
 function applyFisheyeFilter(source, strength) {
-  const w = source.width, h = source.height;
+  const srcW = source.width, srcH = source.height;
+  const size = Math.min(srcW, srcH);
   const srcCanvas = document.createElement("canvas");
-  srcCanvas.width = w; srcCanvas.height = h;
+  srcCanvas.width = srcW; srcCanvas.height = srcH;
   const srcCtx = srcCanvas.getContext("2d", { willReadFrequently: true });
   srcCtx.drawImage(source, 0, 0);
-  const srcData = srcCtx.getImageData(0, 0, w, h).data;
+  const srcData = srcCtx.getImageData(0, 0, srcW, srcH).data;
 
   const outCanvas = document.createElement("canvas");
-  outCanvas.width = w; outCanvas.height = h;
+  outCanvas.width = size; outCanvas.height = size;
   const outCtx = outCanvas.getContext("2d");
-  const outImage = outCtx.createImageData(w, h);
+  const outImage = outCtx.createImageData(size, size);
   const out = outImage.data;
 
-  const cx = w / 2, cy = h / 2;
-  const radius = Math.min(w, h) / 2;
+  const cx = srcW / 2, cy = srcH / 2; // 원본 이미지의 중심을 기준으로 원을 그린다
+  const radius = size / 2;
   const power = 1 + strength * 1.8; // 강도가 셀수록 중앙 확대가 심해짐
 
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const outIdx = (y * w + x) * 4;
-      const dx = (x - cx) / radius, dy = (y - cy) / radius;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const outIdx = (y * size + x) * 4;
+      const dx = (x - radius) / radius, dy = (y - radius) / radius;
       const r = Math.sqrt(dx * dx + dy * dy);
       if (r > 1) {
         out[outIdx] = 0; out[outIdx + 1] = 0; out[outIdx + 2] = 0; out[outIdx + 3] = 255;
@@ -1216,9 +1218,9 @@ function applyFisheyeFilter(source, strength) {
       }
       const rn = Math.pow(r, power);
       const theta = Math.atan2(dy, dx);
-      const srcX = Math.min(w - 1, Math.max(0, Math.round(cx + Math.cos(theta) * rn * radius)));
-      const srcY = Math.min(h - 1, Math.max(0, Math.round(cy + Math.sin(theta) * rn * radius)));
-      const srcIdx = (srcY * w + srcX) * 4;
+      const srcX = Math.min(srcW - 1, Math.max(0, Math.round(cx + Math.cos(theta) * rn * radius)));
+      const srcY = Math.min(srcH - 1, Math.max(0, Math.round(cy + Math.sin(theta) * rn * radius)));
+      const srcIdx = (srcY * srcW + srcX) * 4;
       const vignette = 1 - Math.pow(r, 3) * 0.45;
       out[outIdx] = srcData[srcIdx] * vignette;
       out[outIdx + 1] = srcData[srcIdx + 1] * vignette;
